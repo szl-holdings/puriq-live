@@ -1,5 +1,17 @@
 # PURIQ Live
 
+
+## Packet 8 source pin
+
+Puriq Markets product logic lives in canonical [`szl-holdings/a11oy/verticals/puriq-markets`](https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets).
+
+- Kernel: [`verticals/_kernel/a11oy_kernel.py`](https://github.com/szl-holdings/a11oy/blob/main/verticals/_kernel/a11oy_kernel.py)
+- Hugging Face Space (private, ROADMAP): `SZLHOLDINGS/puriq-markets`
+- This repo is a generated thin adapter. See [`SOURCE_PIN.md`](SOURCE_PIN.md).
+- Formula authority: **NONE**. Models, formulas and market signals never authorize.
+- Canonical land PR: [szl-holdings/a11oy#1438](https://github.com/szl-holdings/a11oy/pull/1438)
+
+
 Execute the SZL formula corpus against **live public signals**. No simulated Λ.
 
 **Λ uniqueness is Conjecture 1.** CHECKED never upgrades a conjecture.
