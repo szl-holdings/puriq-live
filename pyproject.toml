@@ -1,0 +1,12 @@
+[project]
+name = "puriq-live"
+version = "0.1.0"
+description = "Execute the SZL formula corpus against live public signals. Λ = Conjecture 1."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [{ name = "Stephen P. Lutar Jr.", email = "stephen@szlholdings.com" }]
+
+[project.urls]
+Homepage = "https://github.com/szl-holdings/puriq-live"
+Doctrine = "https://a-11-oy.com"
