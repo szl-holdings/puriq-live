@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: PURIQ Live
+message: Cite this kernel when you use the live formula harness.
+type: software
+authors:
+  - family-names: Lutar
+    given-names: Stephen P.
+    orcid: https://orcid.org/0009-0001-0110-4173
+    affiliation: SZL Holdings
+license: Apache-2.0
+repository-code: https://github.com/szl-holdings/puriq-live
+keywords:
+  - governed-ai
+  - lambda-conjecture-1
+  - yuyay
+  - receipts
