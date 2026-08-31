@@ -6,7 +6,7 @@
 Puriq Markets product logic lives in canonical [`szl-holdings/a11oy/verticals/puriq-markets`](https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets).
 
 - Kernel: [`verticals/_kernel/a11oy_kernel.py`](https://github.com/szl-holdings/a11oy/blob/main/verticals/_kernel/a11oy_kernel.py)
-- Hugging Face Space (private, ROADMAP): `SZLHOLDINGS/puriq-markets`
+- Hugging Face Space `SZLHOLDINGS/puriq-markets` — **ROADMAP, not yet created** (no public or private Space exists today; verified 2026-08-30)
 - This repo is a generated thin adapter. See [`SOURCE_PIN.md`](SOURCE_PIN.md).
 - Formula authority: **NONE**. Models, formulas and market signals never authorize.
 - Canonical land PR: [szl-holdings/a11oy#1438](https://github.com/szl-holdings/a11oy/pull/1438)
@@ -34,7 +34,7 @@ python3 tests/test_puriq.py
 python3 -c "from szl_puriq import execute_corpus; print(execute_corpus()['tallies'])"
 ```
 
-Hugging Face Space entrypoint: `app.py` (Gradio). Duplicate to `SZLHOLDINGS/puriq-live`.
+Hugging Face Space entrypoint: `app.py` (Gradio). The `SZLHOLDINGS/puriq-live` Space is **ROADMAP, not yet created** (verified 2026-08-30) — this repo is the source that will publish to it.
 
 ## Live feeds (fail closed)
 
