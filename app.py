@@ -7,6 +7,9 @@ Apache-2.0 · Doctrine v11 · ORCID 0009-0001-0110-4173
 """
 from __future__ import annotations
 
+# SZL Holographic Space Fabric v2
+from szl_hologram_assets import A11OY_HOLO_CSS, A11OY_HOLO_HEAD, merge_hologram_css, merge_hologram_head
+
 import json
 import sys
 import urllib.request
@@ -103,7 +106,7 @@ def evaluate() -> str:
     return "\n".join(lines)
 
 
-with gr.Blocks(title="PURIQ Live") as demo:
+with gr.Blocks(title="PURIQ Live", css=A11OY_HOLO_CSS, head=A11OY_HOLO_HEAD) as demo:
     gr.Markdown(
         "# PURIQ Live\nFormulas on live public signals. **Λ uniqueness is Conjecture 1.** "
         "Source: [szl-holdings/puriq-live](https://github.com/szl-holdings/puriq-live)."
