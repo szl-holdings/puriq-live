@@ -1,0 +1,12 @@
+{
+  "schema":"szl.estate.binding/v1",
+  "organ":"puriq",
+  "role":"financial-intelligence-body",
+  "canonical_contract":"https://github.com/szl-holdings/.github/blob/main/estate/alignment.v1.json",
+  "public_front_door":"https://a-11-oy.com",
+  "hub_surface":"SZLHOLDINGS/puriq",
+  "inherits":["a11oy-governance","hatun-policy-veto","second-brain-memory","szl-serve","szl-receipt","szl-frontier"],
+  "domain_objects":["position","scenario","stress","exception","approval","audit-tape"],
+  "performance_claims":"forbidden-without-measured-evidence",
+  "production_requires":"market-data-provenance-approval-and-receipt"
+}
