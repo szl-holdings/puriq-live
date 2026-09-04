@@ -119,7 +119,10 @@ def test_health_readiness_source_and_front_door(client: TestClient) -> None:
     readiness = client.get("/readyz")
     assert readiness.status_code == 200
     assert readiness.json()["ready"] is True
-    assert readiness.json()["build"]["revision"] == "7" * 40
+    assert (
+        readiness.json()["build"]["revision"]
+        == os.environ["PURIQ_SOURCE_REVISION"]
+    )
 
     build = client.get("/api/build-info")
     assert build.status_code == 200
