@@ -1,51 +1,155 @@
-# PURIQ Live
+---
+title: PURIQ Market Chamber
+emoji: 🔮
+colorFrom: purple
+colorTo: yellow
+sdk: docker
+app_port: 7860
+license: apache-2.0
+short_description: Receipted public-market intelligence with no trading path
+tags:
+  - finance
+  - prediction-markets
+  - sec-edgar
+  - market-intelligence
+  - observability
+  - governed-ai
+---
 
+# PURIQ Market Chamber
 
-## Packet 8 source pin
+PURIQ is SZL Holdings' source-bound, read-only market-intelligence surface. It observes public prediction-market quotes, SEC filings, U.S. Treasury rates, and public crypto spot references; applies explicit descriptive formulas; stores bounded receipt handles under a hashed caller session; and produces non-authorizing Hatun review envelopes.
 
-Puriq Markets product logic lives in canonical [`szl-holdings/a11oy/verticals/puriq-markets`](https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets).
+**PURIQ contains no wallet connection, custody, account, order, or trading endpoint.** It does not provide personalized investment advice. External observations can be delayed, incomplete, revised, or unavailable.
 
-- Kernel: [`verticals/_kernel/a11oy_kernel.py`](https://github.com/szl-holdings/a11oy/blob/main/verticals/_kernel/a11oy_kernel.py)
-- Hugging Face Space `SZLHOLDINGS/puriq-markets` — **ROADMAP, not yet created** (no public or private Space exists today; verified 2026-08-30)
-- This repo is a generated thin adapter. See [`SOURCE_PIN.md`](SOURCE_PIN.md).
-- Formula authority: **NONE**. Models, formulas and market signals never authorize.
-- Canonical land PR: [szl-holdings/a11oy#1438](https://github.com/szl-holdings/a11oy/pull/1438)
-- Canonical land SHA: [`2b67b63624a3f4bf35787cfa5260d7960f1a76d5`](https://github.com/szl-holdings/a11oy/commit/2b67b63624a3f4bf35787cfa5260d7960f1a76d5)
+## Product contract
 
-
-Execute the SZL formula corpus against **live public signals**. No simulated Λ.
-
-**Λ uniqueness is Conjecture 1.** CHECKED never upgrades a conjecture.
-
-| Aggregator | Meaning |
+| Layer | Operational behavior |
 | --- | --- |
-| Symmetric Λ | Uniform 1/13 weights. Satisfies A5 (permutation invariance). |
-| Egyptian Λ | Horus-Eye 1/2+…+1/64 = 63/64, remainder on leftover axes. Anchored — Theorem U regime. |
-| maxAgg | Live counterexample: same 13-axis vector, different score. Unconditional uniqueness is OPEN and false as stated. |
+| Public front door | Original PURIQ probability-orbit interface; responsive, keyboard visible, reduced-motion aware, and forced-colors compatible |
+| Sense | Fixed HTTPS sources only; no caller-supplied URLs, redirects, or unbounded response bodies |
+| Normalize | Strict numeric and schema normalization with explicit `UNAVAILABLE` degradation |
+| Formula | Locked-8 maturity context, binary entropy, probability displacement, liquidity data-quality scoring, and Lambda advisory roll-up |
+| Second Brain | Bounded process-memory receipt handles keyed by SHA-256 of a caller-held session token |
+| Hatun | `REVIEW` or `ABSTAIN` only; evidence receipts must already exist in the same caller session |
+| Proof | Source-byte digest, normalized-observation digest, source URL, observation time, expiry, and deterministic receipt ID |
+| Effectors | Disabled |
 
-Locked-8 (lutar-lean kernel `c7c0ba17`): `{F1, F4, F7, F11, F12, F18, F19, F22}`.
+## Fixed public authorities
 
-Doctrine v11 LOCKED · 749 / 14 / 163 · Apache-2.0.
+- **Polymarket Gamma API** — active public market discovery and quoted outcome prices; public read-only mode.
+- **U.S. Securities and Exchange Commission** — EDGAR submissions by CIK.
+- **U.S. Department of the Treasury FiscalData** — average interest rates on Treasury securities.
+- **Coinbase public prices API** — allowlisted public spot references.
 
-## Run
+A failed source stays `UNAVAILABLE`; it is never replaced with fabricated or unlabeled sample data.
 
-```bash
-python3 tests/test_puriq.py
-python3 -c "from szl_puriq import execute_corpus; print(execute_corpus()['tallies'])"
+## API
+
+```text
+GET  /
+GET  /healthz
+GET  /readyz
+GET  /api/build-info
+GET  /.well-known/szl-source.json
+GET  /api/puriq/v1/anatomy
+GET  /api/puriq/v1/formulas
+GET  /api/puriq/v1/sources
+GET  /api/puriq/v1/markets
+GET  /api/puriq/v1/brief
+GET  /api/puriq/v1/second-brain
+POST /api/puriq/v1/hatun/evaluate
 ```
 
-Hugging Face Space entrypoint: `app.py` (Gradio). The `SZLHOLDINGS/puriq-live` Space is **ROADMAP, not yet created** (verified 2026-08-30) — this repo is the source that will publish to it.
+Stateful routes require a high-entropy `X-SZL-Session` header. The raw token is never recorded; only its SHA-256 scope is used internally.
 
-## Live feeds (fail closed)
+### Observe the chamber
 
-GitHub `szl-holdings` · Hugging Face `SZLHOLDINGS` · a-11-oy.com honest/genome/ledger/mesh/readiness · USGS earthquakes · Open-Meteo NYC · ISS · NYC PLUTO · CISA KEV.
+```bash
+SESSION="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 
-A missing feed is **UNAVAILABLE**, never painted green.
+curl -sS \
+  -H "X-SZL-Session: ${SESSION}" \
+  'http://127.0.0.1:7860/api/puriq/v1/brief?market_limit=12&cik=320193&crypto_base=BTC&crypto_currency=USD'
+```
+
+### Ask Hatun for review
+
+First observe one or more sources, then pass receipt IDs from the same session:
+
+```bash
+curl -sS -X POST \
+  -H 'Content-Type: application/json' \
+  -H "X-SZL-Session: ${SESSION}" \
+  http://127.0.0.1:7860/api/puriq/v1/hatun/evaluate \
+  -d '{
+    "intent": "review a public market evidence brief",
+    "requested_action": "market.review",
+    "axes": {"evidence": 0.95, "freshness": 0.90, "reversibility": 0.97},
+    "evidence_receipt_ids": ["<64-lowercase-hex-receipt-id>"]
+  }'
+```
+
+Hatun cannot authorize or execute. Lambda remains **Conjecture 1** and advisory only.
+
+## Formula authority
+
+The existing `szl_puriq.py` corpus remains intact and must report zero `FAILED` entries. Locked-proven identity remains exactly:
+
+```text
+F1, F4, F7, F11, F12, F18, F19, F22
+```
+
+The Market Chamber adds descriptive runtime transforms:
+
+- binary Shannon entropy for a quoted binary probability;
+- displacement from an explicit reference probability;
+- transparent spread/liquidity/volume data-quality scoring;
+- source-coverage Lambda advisory roll-up.
+
+These formulas can organize review. They cannot establish guaranteed outcomes, fair value, expected return, or autonomous authority.
+
+## Living Anatomy
+
+PURIQ follows the nine-organ operating contract:
+
+```text
+Sense → Normalize → Context → Formula → Policy → Decide → Verify → Remember → Receipt
+```
+
+The shared six-vertical fabric lives in `szl-holdings/vertical-services`; PURIQ is its dedicated finance-facing product surface. The shared fabric resolves the aliases `puriq` and `markets` to its canonical `finance` runtime, avoiding duplicate authority.
+
+## Run locally
+
+```bash
+python -m pip install -r requirements.txt -r requirements-test.txt
+export PURIQ_SOURCE_REVISION=0000000000000000000000000000000000000000
+python -m pytest tests -q
+uvicorn app:app --host 0.0.0.0 --port 7860
+```
+
+Container:
+
+```bash
+docker build \
+  --build-arg PURIQ_SOURCE_REVISION="$(git rev-parse HEAD)" \
+  -t puriq-market-chamber .
+docker run --rm -p 7860:7860 puriq-market-chamber
+```
+
+`/readyz` closes only when source identity is a full observed Git SHA and the formula corpus has zero failures.
+
+## Truth and safety boundaries
+
+- `MEASURED` — local contract, source identity, or deterministic computation directly observed by the runtime.
+- `REPORTED` — normalized content returned by a named external authority.
+- `MODELED` — explicit descriptive transform such as entropy, probability displacement, liquidity quality, or Lambda advisory score.
+- `UNAVAILABLE` — source or evidence not observed; never painted green.
+
+Trading, wallet connections, custody, personalized investment advice, and unattended effectors are disabled.
 
 ## Author
 
-Stephen P. Lutar Jr. · SZL Holdings · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
+Stephen P. Lutar Jr. · SZL Holdings · ORCID `0009-0001-0110-4173`
 
-Thesis concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) · Lean [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)
-
-[a-11-oy.com](https://a-11-oy.com) · [huggingface.co/SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS)
+Apache-2.0. See `NOTICE` and `CITATION.cff`.
