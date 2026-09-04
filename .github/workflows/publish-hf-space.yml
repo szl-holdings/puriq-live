@@ -1,0 +1,66 @@
+name: Publish PURIQ Hugging Face Space
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app.py"
+      - "README.md"
+      - "Dockerfile"
+      - "requirements*.txt"
+      - "szl_puriq.py"
+      - "SZL_ESTATE_BINDING.json"
+      - ".github/workflows/publish-hf-space.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-hf-puriq
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Verify publisher token and publish exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_TOKEN:-}" || { echo "::error::HF_ORG_TOKEN/HF_TOKEN is not configured"; exit 1; }
+          python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0"
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          who = api.whoami()
+          role = ((who.get("auth") or {}).get("accessToken") or {}).get("role")
+          if role == "read":
+              raise SystemExit("HF token is read-only")
+          repo_id = "SZLHOLDINGS/puriq"
+          api.create_repo(repo_id, repo_type="space", space_sdk="docker", exist_ok=True)
+          api.upload_folder(
+              repo_id=repo_id,
+              repo_type="space",
+              folder_path=".",
+              ignore_patterns=[
+                  ".git/**", ".github/**", "__pycache__/**", ".pytest_cache/**",
+                  "*.pyc", "tests/**", "receipts/**"
+              ],
+              commit_message=f"sync PURIQ from GitHub {os.environ.get('GITHUB_SHA','unknown')}",
+          )
+          info = api.repo_info(repo_id, repo_type="space")
+          print("Published", repo_id, "sha", info.sha)
+          PY
