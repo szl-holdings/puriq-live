@@ -117,6 +117,19 @@ jobs:
           test "$(docker inspect --format '{{.Config.User}}' "$cid")" = szl
           docker image inspect szl-puriq-market-chamber:test > finance-evidence/container-image.json
           python tests/browser_finance.py
+      - name: Audit actual container Python closure without mutating the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip check
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip freeze --all > finance-evidence/container-requirements.txt
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip inspect > finance-evidence/container-dependency-inspection.json
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test --version > finance-evidence/container-python-version.txt
+          audit_env="$RUNNER_TEMP/puriq-dependency-audit"
+          python -m venv "$audit_env"
+          "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
+          "$audit_env/bin/python" -m pip freeze --all > finance-evidence/auditor-environment.txt
+          "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-evidence/container-requirements.txt --format json --output finance-evidence/dependency-audit.json
       - name: Retain source-bound qualification evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
