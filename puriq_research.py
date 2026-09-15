@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from copy import deepcopy
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN, localcontext
 import hashlib
 import math
 import threading
@@ -56,7 +56,8 @@ def normalize_candles(payload: Any, *, granularity: int, observed_at: float) -> 
         if stamp in seen:
             raise SourceUnavailable("duplicate candle timestamp")
         seen.add(stamp)
-        if min(low, high, opened, close) <= 0 or volume < 0:
+        # Fixed BTC/ETH/SOL-USD research domain: sub-satoshi USD prices are unsupported.
+        if min(low, high, opened, close) < 1e-8 or volume < 0:
             raise SourceUnavailable("candle has an invalid price or volume")
         if not low <= min(opened, close) <= max(opened, close) <= high:
             raise SourceUnavailable("candle violates OHLC ordering")
@@ -79,7 +80,9 @@ def normalize_candles(payload: Any, *, granularity: int, observed_at: float) -> 
 
 
 def money(value: Decimal) -> str:
-    return format(value.quantize(Decimal("0.000001")), "f")
+    with localcontext() as context:
+        context.prec = 64
+        return format(value.quantize(Decimal("0.000001")), "f")
 
 
 def research_replay(bars: list[dict], *, gaps: list[dict]) -> dict:
@@ -195,16 +198,18 @@ class ResearchClient:
                 result = deepcopy(cached[1])
             else:
                 # Failed refresh never converts a stale cache into a fresh observation.
+                request_started_at = now
                 url = f"https://api.exchange.coinbase.com/products/{pair}/candles"
                 _, raw, payload, source_url = _bounded_get_json(url,
                     query={"granularity": str(granularity)}, max_bytes=250_000,
                     transport=self.transport)
                 now = self.clock()
-                history = normalize_candles(payload, granularity=granularity, observed_at=now)
+                history = normalize_candles(payload, granularity=granularity, observed_at=request_started_at)
                 result = {"schema": "szl.puriq.research-observation/v1", "status": "OBSERVED",
                     "pair": pair, "granularity_seconds": granularity, "history": history,
                     "source": {"authority": "Coinbase Exchange public candles", "url": source_url,
-                        "observed_at": now, "raw_sha256": hashlib.sha256(raw).hexdigest(),
+                        "observed_at": now, "request_started_at": request_started_at,
+                        "raw_sha256": hashlib.sha256(raw).hexdigest(),
                         "normalized_sha256": sha256_json(history), "truth_label": "REPORTED",
                         "digest_is_signature": False},
                     "replay": research_replay(history["bars"], gaps=history["gaps"]),
