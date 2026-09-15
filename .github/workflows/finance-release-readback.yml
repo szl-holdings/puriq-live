@@ -1,0 +1,72 @@
+name: Finance release source readback
+"on":
+  push:
+    branches: [audit/finance-luxalgo-20260914]
+    paths: [.github/workflows/finance-release-readback.yml]
+permissions:
+  contents: read
+concurrency:
+  group: finance-release-readback
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Acquire admitted PURIQ source; do not execute it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: szl-holdings/puriq-live
+          ref: 91717976275b685bef5f6ba9caa40b43fc1efff5
+          path: source/puriq
+          persist-credentials: false
+      - name: Acquire exact finance backend candidate; do not execute it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: szl-holdings/a11oy
+          ref: ef71ef0e8898f8cc85a947df0f3b7eb6503d0f85
+          path: source/a11oy-candidate
+          persist-credentials: false
+      - name: Acquire current observed integration base; do not execute it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: szl-holdings/a11oy
+          ref: b9eff59cf4b6e675cd70b63853bb6655b9e4a0dd
+          path: source/a11oy-main
+          persist-credentials: false
+      - name: Export tracked source only with SHA256 manifest
+        shell: python
+        run: |
+          import hashlib, json, pathlib, subprocess, tarfile
+          out = pathlib.Path('finance-release-readback')
+          out.mkdir()
+          manifest = {'schema':'szl.finance.source-review/v1', 'code_executed':False, 'deployed':False, 'sources':{}}
+          for name, expected in [('puriq','91717976275b685bef5f6ba9caa40b43fc1efff5'),('a11oy-candidate','ef71ef0e8898f8cc85a947df0f3b7eb6503d0f85'),('a11oy-main','b9eff59cf4b6e675cd70b63853bb6655b9e4a0dd')]:
+              root = pathlib.Path('source') / name
+              actual = subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip()
+              if actual != expected:
+                  raise RuntimeError('source identity mismatch')
+              paths = subprocess.check_output(['git','-C',str(root),'ls-files','-z']).decode().split('\0')
+              entry = {'sha':actual,'files':{},'omitted':[]}
+              total = 0
+              with tarfile.open(out/(name+'.tar.gz'),'w:gz') as archive:
+                  for relative in sorted(p for p in paths if p):
+                      path = root / relative
+                      if path.is_symlink() or not path.is_file() or path.stat().st_size > 4*1024*1024:
+                          entry['omitted'].append(relative)
+                          continue
+                      total += path.stat().st_size
+                      if total > 160*1024*1024:
+                          raise RuntimeError('snapshot exceeds review bound')
+                      entry['files'][relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+                      archive.add(path,arcname=relative,recursive=False)
+              entry['archive_sha256'] = hashlib.sha256((out/(name+'.tar.gz')).read_bytes()).hexdigest()
+              manifest['sources'][name] = entry
+          (out/'manifest.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')
+      - name: Retain exact review packet
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: finance-release-readback-${{ github.run_id }}
+          path: finance-release-readback/
+          if-no-files-found: error
+          retention-days: 7
