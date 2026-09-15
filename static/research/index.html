@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>PURIQ · Evidence Market Lab</title>
+<link rel="stylesheet" href="/static/research/research.css">
+<script defer src="/static/vendor/vela/vela.global.min.js"></script>
+<script defer src="/static/research/research.js"></script></head>
+<body><a class="skip" href="#main">Skip to research</a>
+<header><a href="/" class="wordmark">PURIQ<span> / SZL HOLDINGS</span></a><span class="badge">RESEARCH ONLY · LIVE TRADING OFF</span></header>
+<main id="main"><section class="hero"><div><p class="eyebrow">FINANCE / EVIDENCE MARKET LAB</p>
+<h1>Observe the market.<br><em>Interrogate the thesis.</em></h1>
+<p class="intro">Real historical candles. Explicit assumptions. A $1,000 virtual sandbox—not a funded account, not an autonomous trading agent.</p></div>
+<div class="orb" aria-hidden="true"><i></i><b>1000<span>VIRTUAL USD</span></b></div></section>
+<section class="controls panel" aria-label="Research controls"><label>Instrument<select id="pair"><option>BTC-USD</option><option>ETH-USD</option><option>SOL-USD</option></select></label>
+<label>Completed candle interval<select id="granularity"><option value="900">15 minutes</option><option value="3600" selected>1 hour</option><option value="86400">1 day</option></select></label>
+<button id="observe">Observe &amp; replay</button><a href="/">Prediction markets &amp; filings ↗</a></section>
+<p id="status" role="status" aria-live="polite">NOT OBSERVED — acquire a public history window to begin. No fabricated fallback data.</p>
+<section class="metrics" aria-label="Research summary"><article class="panel"><span>VIRTUAL CAPITAL</span><strong>$1,000.00</strong><small>Unfunded · no custody</small></article>
+<article class="panel"><span>LAST COMPLETED CLOSE</span><strong id="last">—</strong><small id="barcount">Not a live bid or ask</small></article>
+<article class="panel"><span>MODELED FINAL EQUITY</span><strong id="equity">—</strong><small id="pnl">No performance claim</small></article>
+<article class="panel"><span>MODELED MAX DRAWDOWN</span><strong id="drawdown">—</strong><small id="trades">No loss guarantee</small></article></section>
+<section class="panel market"><div class="sectionhead"><div><p class="eyebrow">01 / PRICE OBSERVATION</p><h2>Market structure</h2></div><span id="pricetag" class="tag">UNAVAILABLE</span></div>
+<div id="pricechart" role="img" aria-label="Historical candlestick chart; data summary and table below"><p class="empty">Source-bound candles will appear here.</p></div>
+<div class="chartfoot"><a href="https://luxalgo.com/vela" target="_blank" rel="noopener noreferrer">Charts by Vela · LuxAlgo</a><span id="age">Fetch age and market-event age are separate.</span></div></section>
+<div class="twocol"><section class="panel"><div class="sectionhead"><div><p class="eyebrow">02 / COUNTERFACTUAL REPLAY</p><h2>Capital trajectory</h2></div><span class="tag">MODELED · NOT A FORECAST</span></div>
+<svg id="equitychart" viewBox="0 0 760 240" role="img" aria-label="Modeled equity versus an equally allocated buy-and-hold reference"><text x="30" y="120">No simulated result yet.</text></svg>
+<p class="legend"><span>━ Fixed SMA 20/50</span><span>┄ Same $100 buy-and-hold allocation</span></p>
+<p class="note">Signals use prior completed bars; fills use the next open. Fixed $100 entry-spend cap, no leverage. Final mark includes unrealized P&amp;L and excludes final liquidation costs.</p></section>
+<section class="panel assumption"><p class="eyebrow">03 / ASSUMPTION REGISTER</p><h2>What this does not prove</h2>
+<dl><dt>Strategy</dt><dd>Fixed research baseline · not a trained model</dd><dt>Costs per side</dt><dd>20 bps fee + 10 bps slippage · illustrative, not a venue quote</dd><dt>History</dt><dd>Up to 300 completed candles · no gap filling</dd><dt>Qualification</dt><dd>No out-of-sample skill claim, no expected return</dd><dt>Authority</dt><dd>None · no broker keys, orders, wallet, or funding</dd></dl>
+<p class="note">Liquidity, fill probability, market impact, latency, tax, and funding are not modeled. Actual losses and costs can be materially worse.</p></section></div>
+<section class="panel"><div class="sectionhead"><div><p class="eyebrow">04 / PROVENANCE</p><h2>Evidence before conviction</h2></div><button id="export" disabled>Export observation JSON</button></div>
+<div class="proofgrid"><div><span>PUBLIC SOURCE</span><p id="source">UNAVAILABLE</p></div><div><span>INPUT BYTE DIGEST</span><code id="digest">UNAVAILABLE</code></div><div><span>REPLAY RESULT DIGEST</span><code id="resultdigest">UNAVAILABLE</code></div></div>
+<p class="note">Digests bind bytes; they are not signatures, independent verification, or evidence of predictive skill. The canonical SZL paper engine and signed ledger remain in <a href="https://github.com/szl-holdings/szl-quant" target="_blank" rel="noopener noreferrer">szl-quant</a>. This page does not mutate that ledger.</p></section>
+<details class="panel"><summary>Accessible data table · last 20 completed bars</summary><div class="tablewrap"><table><thead><tr><th>UTC start</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th></tr></thead><tbody id="rows"></tbody></table></div></details>
+<footer>PURIQ / GitHub source → Hugging Face runtime → product → evidence. <a href="/api/build-info">Inspect this build</a> · <a href="/static/vendor/vela/NOTICE">Third-party notices</a></footer>
+</main></body></html>

@@ -1,28 +1,11 @@
 name: PURIQ Market Chamber CI
 
+# No path filters: every eligible main SHA can obtain its own source check.
 "on":
   push:
     branches: [main]
-    paths:
-      - .github/workflows/puriq.yml
-      - Dockerfile
-      - app.py
-      - puriq_market.py
-      - szl_puriq.py
-      - requirements*.txt
-      - tests/**
-      - README.md
   pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/puriq.yml
-      - Dockerfile
-      - app.py
-      - puriq_market.py
-      - szl_puriq.py
-      - requirements*.txt
-      - tests/**
-      - README.md
   workflow_dispatch: {}
 
 permissions:
@@ -36,64 +19,122 @@ jobs:
   test:
     name: Test formulas, sources, API, UI, and container
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    env:
+      SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
-
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.SOURCE_REVISION }}
           persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12.10"
-
-      - name: Install pinned runtime and test closure
-        run: >-
-          python -m pip install --disable-pip-version-check --no-cache-dir
-          -r requirements.txt -r requirements-test.txt
-
-      - name: Compile and run complete contract suite
-        env:
-          PURIQ_SOURCE_REVISION: ${{ github.sha }}
-        run: |
-          python -m pip check
-          python -m compileall -q app.py puriq_market.py szl_puriq.py tests
-          python -m pytest tests -q
-
-      - name: Build source-bound nonroot container
-        run: >-
-          docker build
-          --build-arg PURIQ_SOURCE_REVISION="$GITHUB_SHA"
-          --file Dockerfile
-          --tag szl-puriq-market-chamber:test
-          .
-
-      - name: Close local runtime smoke routes
+      - name: Bind source and retain exact review tree
         shell: bash
         run: |
           set -euo pipefail
-          cid="$(docker run --detach --publish 127.0.0.1:7860:7860 szl-puriq-market-chamber:test)"
-          trap 'docker logs "$cid" || true; docker rm --force "$cid" >/dev/null 2>&1 || true' EXIT
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          mkdir -p finance-evidence
+          git archive --format=tar HEAD | gzip -n > finance-evidence/source.tar.gz
+          python - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          p=Path('finance-evidence/source.tar.gz')
+          Path('finance-evidence/source-identity.json').write_text(json.dumps({
+              'source_revision':os.environ['SOURCE_REVISION'],
+              'workflow_event_revision':os.environ['GITHUB_SHA'],
+              'event':os.environ['GITHUB_EVENT_NAME'],
+              'run_id':os.environ['GITHUB_RUN_ID'],
+              'run_attempt':os.environ['GITHUB_RUN_ATTEMPT'],
+              'source_archive_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),
+              'deployment_verified':False},indent=2)+'\n')
+          PY
+      - name: Set up Python matching pinned image
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.13'
+      - name: Install pinned runtime and test closure
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir -r requirements.txt -r requirements-test.txt
+          python tools/vendor_vela.py
+      - name: Compile and run complete contract suite
+        env:
+          PURIQ_SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
+        run: |
+          set -euo pipefail
+          python -m pip check
+          python -m pip freeze > finance-evidence/python-environment.txt
+          python -m pip inspect > finance-evidence/python-dependency-inspection.json
+          python -m compileall -q app.py puriq_market.py puriq_research.py puriq_research_routes.py szl_puriq.py tools tests
+          python -m pytest tests -q --junitxml=finance-evidence/unit-tests.xml
+      - name: Build source-bound nonroot container
+        run: >-
+          docker build --build-arg PURIQ_SOURCE_REVISION="$SOURCE_REVISION"
+          --file Dockerfile --tag szl-puriq-market-chamber:test .
+      - name: Run full suite inside actual production image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p finance-evidence/container-tests
+          chmod 0777 finance-evidence/container-tests
+          docker run --rm --read-only --tmpfs /tmp \
+            --mount "type=bind,src=$PWD/tests,dst=/app/tests,readonly" \
+            --mount "type=bind,src=$PWD/requirements-test.txt,dst=/app/requirements-test.txt,readonly" \
+            --mount "type=bind,src=$PWD/finance-evidence/container-tests,dst=/evidence" \
+            --entrypoint sh szl-puriq-market-chamber:test -ec '
+              python -c "import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)" > /evidence/python-version.txt
+              python -m pip check
+              python -m pip freeze > /evidence/production-environment.txt
+              python -m pip inspect > /evidence/production-dependency-inspection.json
+              python -m venv --system-site-packages /tmp/test-env
+              /tmp/test-env/bin/python -m pip install --disable-pip-version-check -r /app/requirements-test.txt
+              /tmp/test-env/bin/python -m pip check
+              /tmp/test-env/bin/python -m pytest /app/tests -q -p no:cacheprovider --junitxml=/evidence/unit-tests.xml
+            '
+      - name: Install isolated browser test runner
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.55.0'
+          python -m playwright install --with-deps chromium
+      - name: Prove container routes and actual browser behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run --detach --read-only --tmpfs /tmp --publish 127.0.0.1:7860:7860 szl-puriq-market-chamber:test)"
+          trap 'docker logs "$cid" > finance-evidence/container.log 2>&1 || true; docker rm --force "$cid" >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 40); do
-            if curl --fail --silent --show-error http://127.0.0.1:7860/readyz >/dev/null; then
-              break
-            fi
-            if [ "$attempt" -eq 40 ]; then
-              echo '::error::PURIQ container readiness did not converge'
-              exit 1
-            fi
+            if curl --fail --silent --show-error http://127.0.0.1:7860/readyz >/dev/null; then break; fi
+            if [ "$attempt" -eq 40 ]; then echo '::error::PURIQ readiness did not converge'; exit 1; fi
             sleep 1
           done
-          for path in \
-            / /healthz /readyz /api/build-info /.well-known/szl-source.json \
-            /api/puriq/v1/anatomy /api/puriq/v1/formulas /api/puriq/v1/sources; do
+          for path in / /research /healthz /readyz /api/build-info /.well-known/szl-source.json /api/puriq/v1/anatomy /api/puriq/v1/formulas /api/puriq/v1/sources /api/puriq/v1/research/readiness /static/research/research.js /static/research/research.css /static/vendor/vela/vela.global.min.js /static/vendor/vela/NOTICE; do
             curl --fail --silent --show-error "http://127.0.0.1:7860${path}" >/dev/null
           done
+          curl --fail --silent --show-error http://127.0.0.1:7860/api/build-info > finance-evidence/build-info.json
+          python -c 'import json,os; b=json.load(open("finance-evidence/build-info.json")); assert b["build"]["revision"]==os.environ["SOURCE_REVISION"]; assert b["source_repository"]=="szl-holdings/puriq-live"'
           test "$(docker inspect --format '{{.Config.User}}' "$cid")" = szl
+          docker image inspect szl-puriq-market-chamber:test > finance-evidence/container-image.json
+          python tests/browser_finance.py
+      - name: Audit actual container Python closure without mutating the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip check
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip freeze --all > finance-evidence/container-requirements.txt
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test -m pip inspect > finance-evidence/container-dependency-inspection.json
+          docker run --rm --read-only --network none --entrypoint python szl-puriq-market-chamber:test --version > finance-evidence/container-python-version.txt
+          audit_env="$RUNNER_TEMP/puriq-dependency-audit"
+          python -m venv "$audit_env"
+          "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
+          "$audit_env/bin/python" -m pip freeze --all > finance-evidence/auditor-environment.txt
+          "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-evidence/container-requirements.txt --format json --output finance-evidence/dependency-audit.json
+      - name: Retain source-bound qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: puriq-finance-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: finance-evidence/
+          if-no-files-found: error
+          retention-days: 30
