@@ -16,7 +16,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Mapping
-from urllib.parse import urlencode, urlsplit, urlunsplit
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -32,6 +32,7 @@ CURRENCY = re.compile(r"^[A-Z0-9]{2,10}$")
 ALLOWED_HOSTS = {
     "gamma-api.polymarket.com",
     "api.coinbase.com",
+    "api.exchange.coinbase.com",
     "api.fiscaldata.treasury.gov",
     "data.sec.gov",
 }
@@ -152,7 +153,7 @@ def liquidity_quality(
     """Transparent market-microstructure quality indicator.
 
     This is a data-quality heuristic, not expected return, fair value, or a
-    recommendation. Missing inputs reduce the score instead of being imputed.
+    recommendation. An incomplete observation has no aggregate score; coverage stays explicit.
     """
     axes: dict[str, float] = {}
     if spread is not None:
@@ -161,9 +162,11 @@ def liquidity_quality(
         axes["liquidity"] = clamp01(math.log10(1.0 + max(0.0, liquidity)) / 7.0)
     if volume_24h is not None:
         axes["volume"] = clamp01(math.log10(1.0 + max(0.0, volume_24h)) / 7.0)
-    score = sum(axes.values()) / len(axes) if axes else 0.0
+    # A partial observation is not comparable with a complete three-axis score.
+    score = sum(axes.values()) / 3 if len(axes) == 3 else None
     return {
-        "score": round(score, 6),
+        "score": round(score, 6) if score is not None else None,
+        "coverage": {"observed": len(axes), "required": 3},
         "axes": axes,
         "label": "MODELED_DATA_QUALITY",
         "can_authorize": False,
@@ -199,6 +202,8 @@ def _assert_destination(url: str) -> None:
         or parts.hostname not in ALLOWED_HOSTS
         or parts.username
         or parts.password
+        or parts.port not in (None, 443)
+        or parts.fragment
     ):
         raise SourceUnavailable("source destination failed the fixed allowlist")
 
@@ -254,9 +259,11 @@ def _bounded_get_json(
 
 
 def _number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
     try:
         numeric = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     return numeric if math.isfinite(numeric) else None
 
@@ -273,96 +280,84 @@ def _json_list(value: Any) -> list[Any]:
     return []
 
 
+def _bounded_number(value: Any, *, probability: bool = False) -> float | None:
+    number = _number(value)
+    if number is None or not 0 <= number <= 1e15 or (probability and number > 1):
+        return None
+    return number
+
+
+def _first_present(item: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    """Preserve a reported zero; never substitute another measurement window."""
+    return next((item[key] for key in keys if key in item), None)
+
+
 def normalize_polymarket(payload: Any, *, limit: int) -> dict[str, Any]:
     if not isinstance(payload, list):
         raise SourceUnavailable("Polymarket payload schema is not recognized")
     rows: list[dict[str, Any]] = []
-    volume_total = 0.0
-    liquidity_total = 0.0
     for item in payload[:limit]:
         if not isinstance(item, dict):
             continue
-        outcomes = [str(value)[:100] for value in _json_list(item.get("outcomes"))]
+        outcomes = _json_list(item.get("outcomes"))
         raw_prices = _json_list(item.get("outcomePrices"))
-        probabilities = [
-            clamp01(value)
-            for value in (_number(item) for item in raw_prices)
-            if value is not None
-        ]
-        outcome_prices = [
-            {"outcome": outcome, "probability": probability}
-            for outcome, probability in zip(outcomes, probabilities)
-        ]
-        yes_probability: float | None = None
-        for pair in outcome_prices:
-            if pair["outcome"].strip().casefold() == "yes":
-                yes_probability = pair["probability"]
-                break
-        if yes_probability is None and len(probabilities) == 2:
-            yes_probability = probabilities[0]
-        best_bid = _number(item.get("bestBid"))
-        best_ask = _number(item.get("bestAsk"))
-        spread = (
-            max(0.0, best_ask - best_bid)
-            if best_bid is not None and best_ask is not None
-            else None
-        )
-        volume = _number(
-            item.get("volume24hr")
-            or item.get("volume24Hr")
-            or item.get("volume")
-        )
-        liquidity = _number(item.get("liquidityNum") or item.get("liquidity"))
-        volume_total += volume or 0.0
-        liquidity_total += liquidity or 0.0
-        rows.append(
-            {
-                "id": item.get("id"),
-                "condition_id": item.get("conditionId"),
-                "slug": item.get("slug"),
-                "question": item.get("question"),
-                "active": bool(item.get("active")),
-                "closed": bool(item.get("closed")),
-                "end_date": item.get("endDate") or item.get("end_date_iso"),
-                "outcomes": outcome_prices,
-                "yes_probability": yes_probability,
-                "binary_entropy": (
-                    round(binary_entropy(yes_probability), 8)
-                    if yes_probability is not None
-                    else None
-                ),
-                "probability_edge_from_50": (
-                    probability_edge(yes_probability)
-                    if yes_probability is not None
-                    else None
-                ),
-                "best_bid": best_bid,
-                "best_ask": best_ask,
-                "spread": round(spread, 8) if spread is not None else None,
-                "volume_24h": volume,
-                "liquidity": liquidity,
-                "liquidity_quality": liquidity_quality(
-                    spread=spread,
-                    liquidity=liquidity,
-                    volume_24h=volume,
-                ),
-                "market_url": (
-                    f"https://polymarket.com/event/{item.get('slug')}"
-                    if item.get("slug")
-                    else None
-                ),
-            }
-        )
+        flags: list[str] = []
+        cardinality_ok = len(outcomes) == len(raw_prices) and len(outcomes) >= 2
+        if not cardinality_ok:
+            flags.append("OUTCOME_PRICE_CARDINALITY_MISMATCH")
+        # Preserve positional identity, even when a price is invalid. Filtering
+        # invalid prices before zipping can silently move NO's price onto YES.
+        outcome_prices = []
+        for index, outcome in enumerate(outcomes[:100]):
+            label = outcome[:100] if isinstance(outcome, str) else None
+            price = _bounded_number(raw_prices[index], probability=True) if cardinality_ok else None
+            if label is None or price is None:
+                flags.append("INVALID_OUTCOME_OR_PRICE")
+            outcome_prices.append({"outcome": label, "probability": price})
+        labels = [p["outcome"].strip().casefold() if p["outcome"] else "" for p in outcome_prices]
+        yes_probability = None
+        if cardinality_ok and len(labels) == 2 and set(labels) == {"yes", "no"}:
+            yes_probability = outcome_prices[labels.index("yes")]["probability"]
+        else:
+            flags.append("NOT_AN_EXPLICIT_YES_NO_BINARY")
+        best_bid = _bounded_number(item.get("bestBid"), probability=True)
+        best_ask = _bounded_number(item.get("bestAsk"), probability=True)
+        spread = None
+        if best_bid is not None and best_ask is not None:
+            if best_bid > best_ask:
+                flags.append("CROSSED_BOOK")
+            else:
+                spread = best_ask - best_bid
+        volume = _bounded_number(_first_present(item, ("volume24hr", "volume24Hr")))
+        lifetime_volume = _bounded_number(item.get("volume"))
+        liquidity = _bounded_number(_first_present(item, ("liquidityNum", "liquidity")))
+        slug = item.get("slug")
+        slug = slug if isinstance(slug, str) and 0 < len(slug) <= 300 else None
+        rows.append({
+            "id": item.get("id"), "condition_id": item.get("conditionId"),
+            "slug": slug, "question": item.get("question"),
+            "active": item.get("active") is True, "closed": item.get("closed") is True,
+            "end_date": item.get("endDate") or item.get("end_date_iso"),
+            "outcomes": outcome_prices, "yes_probability": yes_probability,
+            "binary_entropy": round(binary_entropy(yes_probability), 8) if yes_probability is not None else None,
+            "probability_edge_from_50": probability_edge(yes_probability) if yes_probability is not None else None,
+            "best_bid": best_bid, "best_ask": best_ask,
+            "spread": round(spread, 8) if spread is not None else None,
+            "volume_24h": volume, "volume_lifetime": lifetime_volume, "liquidity": liquidity,
+            "liquidity_quality": liquidity_quality(spread=spread, liquidity=liquidity, volume_24h=volume),
+            "data_quality_flags": sorted(set(flags)),
+            "market_url": f"https://polymarket.com/event/{quote(slug, safe='-')}" if slug else None,
+        })
+    volumes = [r["volume_24h"] for r in rows if r["volume_24h"] is not None]
+    liquidity_values = [r["liquidity"] for r in rows if r["liquidity"] is not None]
     return {
-        "markets": rows,
-        "returned": len(rows),
-        "volume_24h_total": round(volume_total, 6),
-        "liquidity_total": round(liquidity_total, 6),
-        "mode": "PUBLIC_READ_ONLY",
-        "quoted_probability_is_market_price": True,
-        "trading_enabled": False,
-        "custody_enabled": False,
-        "investment_advice": False,
+        "markets": rows, "returned": len(rows),
+        "volume_24h_total": round(sum(volumes), 6) if volumes else None,
+        "volume_24h_observed_rows": len(volumes),
+        "liquidity_total": round(sum(liquidity_values), 6) if liquidity_values else None,
+        "liquidity_observed_rows": len(liquidity_values),
+        "mode": "PUBLIC_READ_ONLY", "quoted_probability_is_market_price": True,
+        "trading_enabled": False, "custody_enabled": False, "investment_advice": False,
     }
 
 
@@ -371,7 +366,7 @@ def normalize_coinbase(payload: Any) -> dict[str, Any]:
         raise SourceUnavailable("Coinbase payload schema is not recognized")
     data = payload["data"]
     amount = _number(data.get("amount"))
-    if amount is None:
+    if amount is None or amount <= 0:
         raise SourceUnavailable("Coinbase spot amount is unavailable")
     return {
         "base": data.get("base"),
@@ -570,6 +565,8 @@ class PuriqClient:
             transport=self.transport,
         )
         observation = normalize_coinbase(payload)
+        if observation["base"] != base or observation["currency"] != currency:
+            raise SourceUnavailable("Coinbase response pair does not match requested pair")
         receipt = observation_receipt(
             source=spec,
             source_url=source_url,
