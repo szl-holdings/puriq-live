@@ -4,6 +4,7 @@ name: Finance focused source audit
     branches: [audit/finance-luxalgo-20260914]
     paths:
       - tools/collect_finance_focus.py
+      - tools/collect_canonical_paper.py
       - .github/workflows/finance-focus-audit.yml
 permissions:
   contents: read
@@ -26,11 +27,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python tools/collect_finance_focus.py
+      - name: Acquire pinned paper ledger and public source/runtime readback
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tools/collect_canonical_paper.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: finance-focus-audit-${{ github.run_id }}
-          path: finance-focus-audit/
+          path: |
+            finance-focus-audit/
+            finance-release-readback/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
