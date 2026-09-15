@@ -1,0 +1,44 @@
+name: Finance estate public audit
+
+"on":
+  push:
+    branches: [audit/finance-luxalgo-20260914]
+    paths:
+      - tools/collect_finance_estate.py
+      - .github/workflows/finance-estate-audit.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-estate-public-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout collector only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Observe public trees, acquire bounded text, probe public runtimes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tools/collect_finance_estate.py
+      - name: Retain scoped observation artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: finance-estate-audit-${{ github.run_id }}
+          path: finance-estate-audit/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
