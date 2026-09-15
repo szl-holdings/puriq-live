@@ -10,10 +10,13 @@ WORKDIR /app
 COPY requirements.txt ./requirements.txt
 RUN python -m pip install --disable-pip-version-check --no-cache-dir -r requirements.txt
 
-COPY app.py puriq_market.py szl_puriq.py ./
+COPY app.py puriq_market.py puriq_research.py puriq_research_routes.py szl_puriq.py ./
+COPY LICENSE NOTICE ./
+COPY static/research/ ./static/research/
+COPY tools/vendor_vela.py ./tools/vendor_vela.py
+RUN python tools/vendor_vela.py
 
-RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin szl \
-    && chown -R szl:szl /app
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin szl
 USER szl
 
 EXPOSE 7860
