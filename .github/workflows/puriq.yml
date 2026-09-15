@@ -52,10 +52,10 @@ jobs:
               'source_archive_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),
               'deployment_verified':False},indent=2)+'\n')
           PY
-      - name: Set up Python
+      - name: Set up Python matching pinned image
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12.10'
+          python-version: '3.12.13'
       - name: Install pinned runtime and test closure
         run: |
           python -m pip install --disable-pip-version-check --no-cache-dir -r requirements.txt -r requirements-test.txt
@@ -74,6 +74,26 @@ jobs:
         run: >-
           docker build --build-arg PURIQ_SOURCE_REVISION="$SOURCE_REVISION"
           --file Dockerfile --tag szl-puriq-market-chamber:test .
+      - name: Run full suite inside actual production image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p finance-evidence/container-tests
+          chmod 0777 finance-evidence/container-tests
+          docker run --rm --read-only --tmpfs /tmp \
+            --mount "type=bind,src=$PWD/tests,dst=/app/tests,readonly" \
+            --mount "type=bind,src=$PWD/requirements-test.txt,dst=/app/requirements-test.txt,readonly" \
+            --mount "type=bind,src=$PWD/finance-evidence/container-tests,dst=/evidence" \
+            --entrypoint sh szl-puriq-market-chamber:test -ec '
+              python -c "import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)" > /evidence/python-version.txt
+              python -m pip check
+              python -m pip freeze > /evidence/production-environment.txt
+              python -m pip inspect > /evidence/production-dependency-inspection.json
+              python -m venv --system-site-packages /tmp/test-env
+              /tmp/test-env/bin/python -m pip install --disable-pip-version-check -r /app/requirements-test.txt
+              /tmp/test-env/bin/python -m pip check
+              /tmp/test-env/bin/python -m pytest /app/tests -q -p no:cacheprovider --junitxml=/evidence/unit-tests.xml
+            '
       - name: Install isolated browser test runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.55.0'
