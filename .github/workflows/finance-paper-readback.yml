@@ -1,0 +1,97 @@
+name: Finance paper ledger readback
+"on":
+  push:
+    branches: [audit/finance-luxalgo-20260914]
+    paths: [.github/workflows/finance-paper-readback.yml]
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden read-only runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12.10'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.16.0'
+      - name: Fetch immutable public source and ledger snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p finance-paper-evidence
+          for spec in 'code 0a18eea4c0ced5543e0536bf84b3cb47b88ecc0f' 'ledger-snapshot 7284cbc41479486c9d9de5c663f7c7972cb578b4'; do
+            read -r dir revision <<< "$spec"
+            git init -q "$dir"
+            git -C "$dir" remote add origin https://github.com/szl-holdings/szl-quant.git
+            git -C "$dir" fetch -q --depth=1 origin "$revision"
+            git -C "$dir" checkout -q --detach FETCH_HEAD
+            test "$(git -C "$dir" rev-parse HEAD)" = "$revision"
+            git -C "$dir" archive --format=tar HEAD | gzip -n > "finance-paper-evidence/$dir.tar.gz"
+          done
+      - name: Independently verify without signing or ledger mutation
+        shell: bash
+        run: |
+          python - <<'PY'
+          import datetime,hashlib,json,os,pathlib,subprocess,urllib.request
+          root=pathlib.Path.cwd(); out=root/'finance-paper-evidence'; code=root/'code'; ledger=root/'ledger-snapshot'
+          report={'schema':'szl.finance.paper-qualification/v1','observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'source_revision':'0a18eea4c0ced5543e0536bf84b3cb47b88ecc0f','ledger_revision':'7284cbc41479486c9d9de5c663f7c7972cb578b4',
+              'node_version':subprocess.check_output(['node','--version'],text=True).strip(),
+              'signed_ledger_mutated':False,'capital_transferred':False,'trading_enabled':False,'performance_admitted':False,'checks':[]}
+          env=dict(os.environ)
+          for key in ('GITHUB_TOKEN','GH_TOKEN','SZL_QUANT_KEY','SZL_QUANT_SIGNING_KEY_PEM','HF_TOKEN','HF_ORG_TOKEN'):
+              env.pop(key,None)
+          def run(name,args,cwd):
+              try:
+                  r=subprocess.run(args,cwd=cwd,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
+                  (out/(name+'.log')).write_text(r.stdout)
+                  report['checks'].append({'name':name,'exit_code':r.returncode,'status':'PASS' if r.returncode==0 else 'FAIL'})
+              except subprocess.TimeoutExpired as e:
+                  (out/(name+'.log')).write_bytes(e.stdout or b'')
+                  report['checks'].append({'name':name,'status':'TIMEOUT'})
+          verifier=str(code/'verify/verify.mjs'); public=str(code/'keys/engine_pubkey.json')
+          run('source-tests',['npm','test'],code)
+          run('archived-backtests',['node',verifier,'--pubkey',public,'--dir','receipts/'],code)
+          for name in ('chain','book','refusals'):
+              run(name,['node',verifier,'--pubkey',public,'--'+name,'ledger/'],ledger)
+          run('witness',['node',verifier,'--pubkey',public,'--rekor-pubkey',str(code/'keys/rekor_pubkey.pem'),'--tsa-anchors',str(code/'keys/tsa'),'--observer-pubkey',str(code/'keys/observer_pubkey.json'),'--witness','.'],ledger)
+          report['ledger_worktree_unchanged']=not subprocess.check_output(['git','status','--porcelain'],cwd=ledger,text=True).strip()
+          report['snapshot_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in out.glob('*.tar.gz')}
+          urls={
+              'quant-main':'https://api.github.com/repos/szl-holdings/szl-quant/git/ref/heads/main',
+              'quant-ledger':'https://api.github.com/repos/szl-holdings/szl-quant/git/ref/heads/ledger',
+              'paper-workflow-runs':'https://api.github.com/repos/szl-holdings/szl-quant/actions/workflows/scheduled-paper.yml/runs?per_page=30',
+              'hf-finance':'https://huggingface.co/api/spaces/SZLHOLDINGS/finance',
+              'finance-source':'https://szlholdings-finance.hf.space/api/build-info',
+              'finance-health':'https://szlholdings-finance.hf.space/healthz',
+              'finance-research':'https://szlholdings-finance.hf.space/research',
+              'finance-research-readiness':'https://szlholdings-finance.hf.space/api/puriq/v1/research/readiness',
+              'finance-live':'https://szlholdings-finance.hf.space/api/live'}
+          report['public_readback']={}
+          for name,url in urls.items():
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'SZL-Paper-Readback/1.0','Cache-Control':'no-cache'})
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      body=r.read(4000001)
+                      if len(body)>4000000:raise ValueError('response bound')
+                      (out/(name+'.txt')).write_bytes(body)
+                      report['public_readback'][name]={'status':r.status,'sha256':hashlib.sha256(body).hexdigest()}
+              except Exception as e:report['public_readback'][name]={'status':'UNAVAILABLE','error_type':type(e).__name__}
+          report['complete_observation']=True
+          (out/'report.json').write_text(json.dumps(report,indent=2)+'\n')
+          print(json.dumps(report,indent=2))
+          PY
+      - name: Retain exact ledger, source and independent outputs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: finance-paper-readback-${{ github.run_id }}
+          path: finance-paper-evidence/
+          if-no-files-found: error
+          retention-days: 30
