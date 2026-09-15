@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from puriq_research_routes import router as research_router, research_assets
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from puriq_market import (
@@ -43,6 +45,8 @@ app = FastAPI(
         "Anatomy, session memory, and non-authorizing Hatun review."
     ),
 )
+app.include_router(research_router)
+app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
 CLIENT = PuriqClient()
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 AXIS_ID = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
@@ -251,8 +255,10 @@ def health() -> dict[str, Any]:
 def readiness() -> JSONResponse:
     build = build_info()
     corpus = execute_corpus()
+    assets = research_assets()
     ready = (
-        build["build"]["state"] == "OBSERVED"
+        assets["ready"]
+        and build["build"]["state"] == "OBSERVED"
         and build["source_binding"]["bindings_agree"] is True
         and corpus["tallies"]["FAILED"] == 0
     )
@@ -264,6 +270,7 @@ def readiness() -> JSONResponse:
             "build": build["build"],
             "source_binding": build["source_binding"],
             "formula_corpus": corpus["tallies"],
+            "research_assets": assets,
             "network_sources_wired": True,
             "live_observations_require_explicit_request": True,
             "trading_enabled": False,
@@ -496,10 +503,10 @@ a,button,input,select{font:inherit}a{color:inherit;min-height:44px;display:inlin
  let session=sessionStorage.getItem(sessionKey);
  if(!session){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);session=Array.from(bytes,function(b){return b.toString(16).padStart(2,'0')}).join('');sessionStorage.setItem(sessionKey,session)}
  const safe=function(value){return value===null||value===undefined?'UNAVAILABLE':String(value)};
- const money=function(value){const n=Number(value);return Number.isFinite(n)?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n):'UNAVAILABLE'};
- const pct=function(value){const n=Number(value);return Number.isFinite(n)?(n*100).toFixed(1)+'%':'UNAVAILABLE'};
+ const money=function(value){if(value===null||value===undefined||value==='')return 'UNAVAILABLE';const n=Number(value);return Number.isFinite(n)?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n):'UNAVAILABLE'};
+ const pct=function(value){if(value===null||value===undefined||value==='')return 'UNAVAILABLE';const n=Number(value);return Number.isFinite(n)?(n*100).toFixed(1)+'%':'UNAVAILABLE'};
  const node=function(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el};
- function renderSources(brief){const root=$('sources');root.replaceChildren();const observations=brief.observations||{};const receipts=brief.receipts||{};['polymarket','sec','treasury','coinbase'].forEach(function(id){const card=node('article','source');card.append(node('span','',id.toUpperCase()));card.append(node('strong','',observations[id]&&observations[id].state==='UNAVAILABLE'?'UNAVAILABLE':'OBSERVED'));card.append(node('small','',receipts[id]?'receipt '+receipts[id].receipt_id.slice(0,12):'No receipt closed'));root.append(card)})}
+ function renderSources(brief){const root=$('sources');root.replaceChildren();const observations=brief.observations||{};const receipts=brief.receipts||{};['polymarket','sec','treasury','coinbase'].forEach(function(id){const card=node('article','source');card.append(node('span','',id.toUpperCase()));card.append(node('strong','',receipts[id]&&observations[id]&&observations[id].state!=='UNAVAILABLE'?'OBSERVED':'UNAVAILABLE'));card.append(node('small','',receipts[id]?'receipt '+receipts[id].receipt_id.slice(0,12):'No receipt closed'));root.append(card)})}
  function renderMarkets(brief){const root=$('markets');root.replaceChildren();const rows=brief.observations&&brief.observations.polymarket?brief.observations.polymarket.markets||[]:[];if(!rows.length){const card=node('article','market');card.append(node('span','','UNAVAILABLE'));card.append(node('h3','','No current market rows were observed.'));root.append(card);return}rows.forEach(function(m){const card=node('article','market');card.append(node('span','',m.active&&!m.closed?'ACTIVE PUBLIC MARKET':'MARKET RECORD'));card.append(node('h3','',safe(m.question)));card.append(node('div','prob',pct(m.yes_probability)));const bar=node('div','bar');const fill=node('i');fill.style.width=Math.max(0,Math.min(100,Number(m.yes_probability||0)*100))+'%';bar.append(fill);card.append(bar);const dl=node('dl');[['Entropy',m.binary_entropy],['24h volume',money(m.volume_24h)],['Liquidity',money(m.liquidity)],['Spread',m.spread],['Data quality',m.liquidity_quality?m.liquidity_quality.score:null]].forEach(function(pair){dl.append(node('dt','',pair[0]));dl.append(node('dd','',safe(pair[1]))});card.append(dl);if(m.market_url){const a=node('a','','Open public market');a.href=m.market_url;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}root.append(card)})}
  function renderReceipts(brief){const root=$('receipts');root.replaceChildren();const entries=Object.entries(brief.receipts||{});if(!entries.length){const card=node('article','receipt');card.append(node('span','','NO RECEIPTS'));card.append(node('strong','','All sources unavailable.'));root.append(card);return}entries.forEach(function(entry){const id=entry[0],r=entry[1];const card=node('article','receipt');card.append(node('span','',id.toUpperCase()));card.append(node('strong','',r.receipt_id.slice(0,16)));card.append(node('small','',new Date(r.observed_at*1000).toISOString()+' · '+r.truth_label));root.append(card)})}
  async function run(){const button=$('run');button.disabled=true;$('status').textContent='Observing fixed public sources and closing receipts…';$('status').classList.remove('error');const params=new URLSearchParams({market_limit:$('marketLimit').value,cik:$('cik').value,crypto_base:$('cryptoBase').value,crypto_currency:$('cryptoCurrency').value});try{const response=await fetch('/api/puriq/v1/brief?'+params.toString(),{headers:{'X-SZL-Session':session,'Accept':'application/json'},cache:'no-store'});const body=await response.json();if(!response.ok)throw new Error(body.detail||('HTTP '+response.status));$('sourcesObserved').textContent=safe(body.source_summary&&body.source_summary.observed)+'/'+safe(body.source_summary&&body.source_summary.total);$('marketsReturned').textContent=safe(body.observations&&body.observations.polymarket&&body.observations.polymarket.returned);$('spotPrice').textContent=money(body.observations&&body.observations.coinbase&&body.observations.coinbase.amount);$('lambdaScore').textContent=safe(body.lambda_advisory&&body.lambda_advisory.score);$('coverageDial').textContent=safe(body.source_summary&&body.source_summary.observed)+'/'+safe(body.source_summary&&body.source_summary.total);$('chamberState').textContent=body.status+' · '+Object.keys(body.receipts||{}).length+' source receipts · trading disabled';renderSources(body);renderMarkets(body);renderReceipts(body);$('status').textContent=body.complete?'Required public sources observed. Review the receipt tape below.':'Chamber degraded: '+Object.keys(body.source_failures||{}).join(', ');if(!body.complete)$('status').classList.add('error')}catch(error){$('status').textContent='Observation failed closed: '+error.message;$('status').classList.add('error')}finally{button.disabled=false}}
@@ -523,7 +530,7 @@ def landing_page() -> str:
         for item in FORMULAS
     )
     return (
-        HTML_TEMPLATE.replace("@@REVISION@@", html.escape(revision_short))
+        HTML_TEMPLATE.replace("</header>", '<a href="/research" style="display:inline-block;padding:12px">Open Evidence Market Lab ↗</a></header>', 1).replace("@@REVISION@@", html.escape(revision_short))
         .replace("@@VERSION@@", html.escape(VERSION))
         .replace("@@FORMULAS@@", formula_rows)
     )
