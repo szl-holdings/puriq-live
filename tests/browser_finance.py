@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import httpx
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 from puriq_research import ResearchClient
 
 ORIGIN = "http://127.0.0.1:7860"
@@ -36,10 +36,11 @@ def fixture(pair: str, granularity: int) -> dict:
 
 def main() -> None:
     OUT.mkdir(exist_ok=True)
-    report = {"schema": "szl.puriq.browser-contract/v1", "source_revision": os.getenv("GITHUB_SHA", "UNBOUND"),
+    report = {"schema": "szl.puriq.browser-contract/v1", "source_revision": os.getenv("SOURCE_REVISION", os.getenv("GITHUB_SHA", "UNBOUND")),
               "fixture_scope": "SYNTHETIC_API_FIXTURE_ONLY_NOT_LIVE_MARKET_DATA",
               "served_application": "built source-bound nonroot Docker container",
               "trading_enabled": False, "deployment_verified": False, "complete": False,
+              "csp_bypassed": False,
               "viewports": [], "page_errors": [], "unexpected_requests": []}
     page = None
     try:
@@ -48,7 +49,7 @@ def main() -> None:
             report["browser_version"] = browser.version
             for width, height in ((320, 568), (375, 812), (768, 1024), (1440, 900)):
                 context = browser.new_context(viewport={"width": width, "height": height},
-                                               reduced_motion="reduce", service_workers="block")
+                                               reduced_motion="reduce", service_workers="block", bypass_csp=False)
                 page = context.new_page()
                 page.set_default_timeout(25000)
                 page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
@@ -66,17 +67,19 @@ def main() -> None:
                 page.route(ORIGIN + "/api/puriq/v1/research?*", answer)
                 response = page.goto(ORIGIN + "/research", wait_until="networkidle")
                 assert response is not None and response.status == 200
-                assert "connect-src 'self'" in response.headers["content-security-policy"]
-                assert page.locator("#export").is_disabled()
+                policy = response.headers["content-security-policy"]
+                assert "connect-src 'self'" in policy
+                assert "'unsafe-eval'" not in policy
+                expect(page.locator("#export")).to_be_disabled()
                 page.keyboard.press("Tab")
-                assert page.locator(".skip").evaluate("element => element === document.activeElement")
+                expect(page.locator(".skip")).to_be_focused()
                 page.locator("#observe").click()
-                page.wait_for_function("document.querySelector('#status').textContent.includes('Virtual replay computed')")
+                expect(page.locator("#status")).to_contain_text("Virtual replay computed", timeout=25000)
                 assert page.locator("#pricechart canvas").count() > 0
-                assert page.locator("#rows tr").count() == 20
-                assert not page.locator("#export").is_disabled()
-                assert page.locator("#last").inner_text() == "$100.50"
-                assert page.locator("a", has_text="Charts by Vela").is_visible()
+                expect(page.locator("#rows tr")).to_have_count(20)
+                expect(page.locator("#export")).to_be_enabled()
+                expect(page.locator("#last")).to_have_text("$100.50")
+                expect(page.locator("a", has_text="Charts by Vela")).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), f"horizontal overflow at {width}"
                 for selector in ("#observe", "#pair", "#granularity"):
                     box = page.locator(selector).bounding_box()
@@ -96,19 +99,20 @@ def main() -> None:
                 page.screenshot(path=str(OUT / f"finance-fixture-{width}.png"), full_page=True)
                 page.locator("#pair").select_option("ETH-USD")
                 page.locator("#observe").click()
-                page.wait_for_function("document.querySelector('#status').textContent.includes('Virtual replay computed')")
-                assert page.locator("#rows tr").count() == 20
+                expect(page.locator("#status")).to_contain_text("Virtual replay computed", timeout=25000)
+                expect(page.locator("#rows tr")).to_have_count(20)
                 mode["fail"] = True
                 page.locator("#observe").click()
-                page.wait_for_function("document.querySelector('#status').textContent.includes('SYNTHETIC_FAILURE_TEST')")
-                assert page.locator("#export").is_disabled()
-                assert page.locator("#last").inner_text() == "—"
-                assert page.locator("#equity").inner_text() == "—"
-                assert page.locator("#pricechart canvas").count() == 0
-                assert page.locator("#rows tr").count() == 0
+                expect(page.locator("#status")).to_contain_text("SYNTHETIC_FAILURE_TEST", timeout=25000)
+                expect(page.locator("#export")).to_be_disabled()
+                expect(page.locator("#last")).to_have_text("—")
+                expect(page.locator("#equity")).to_have_text("—")
+                expect(page.locator("#pricechart canvas")).to_have_count(0)
+                expect(page.locator("#rows tr")).to_have_count(0)
                 page.emulate_media(forced_colors="active", reduced_motion="reduce")
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
-                assert page.locator("#observe").is_visible() and page.locator("#observe").is_enabled()
+                expect(page.locator("#observe")).to_be_visible()
+                expect(page.locator("#observe")).to_be_enabled()
                 report["viewports"].append({"width": width, "height": height, "render": "PASS",
                     "rerender": "PASS", "unavailable_clears_stale_results": "PASS", "export": "PASS",
                     "horizontal_overflow": False, "keyboard_skip": "PASS", "touch_height": "PASS",
