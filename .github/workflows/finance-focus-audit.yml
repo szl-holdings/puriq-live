@@ -1,0 +1,36 @@
+name: Finance focused source audit
+"on":
+  push:
+    branches: [audit/finance-luxalgo-20260914]
+    paths:
+      - tools/collect_finance_focus.py
+      - .github/workflows/finance-focus-audit.yml
+permissions:
+  contents: read
+concurrency:
+  group: finance-focus-audit-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Acquire public source bytes; never execute acquired code
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tools/collect_finance_focus.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: finance-focus-audit-${{ github.run_id }}
+          path: finance-focus-audit/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
