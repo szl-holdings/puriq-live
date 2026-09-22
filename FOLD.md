@@ -1,10 +1,13 @@
-# FOLD / archive-bound
+# Historical fold note — superseded
 
-Not a flagship. Unique work is kept. History stays.
+This file records an earlier consolidation plan. It is **not** the current authority contract and does not mark this active repository for deletion or archive.
 
-**Canonical:** [szl-holdings/szl-formulas](https://github.com/szl-holdings/szl-formulas) and [a11oy/verticals/puriq-markets](https://github.com/szl-holdings/a11oy/tree/main/verticals/puriq-markets)
-**Atlas:** [PUBLIC-SURFACE-ATLAS](https://github.com/szl-holdings/.github/blob/main/docs/PUBLIC-SURFACE-ATLAS.md)
+Current estate authority is defined by `szl-holdings/.github/estate/alignment.v1.json` and mirrored locally in `SZL_ESTATE_BINDING.json`:
 
-This repository is a generated thin adapter over the formula corpus. Do not pin it. Do not delete it.
-Formula authority remains NONE. Λ uniqueness is Conjecture 1.
-Archiving is a later founder step — GitHub archive API was unavailable this session.
+- backend source: `szl-holdings/puriq-live`;
+- shared formula authority: `szl-holdings/szl-formulas`;
+- presentation source: `szl-holdings/a11oy:verticals/finance`;
+- canonical Hugging Face projection: `SZLHOLDINGS/finance`;
+- duplicate authority Spaces are forbidden.
+
+Historical formulas and counterexamples remain preserved, and Λ remains Conjecture 1 / advisory only. GitHub source admission, Hugging Face publication, product-runtime promotion, and proof/evaluation publication are separate qualification stages.
