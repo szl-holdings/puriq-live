@@ -1,26 +1,29 @@
 ---
-title: PURIQ Live
-emoji: 🜂
-colorFrom: gray
-colorTo: green
-sdk: gradio
-sdk_version: 4.44.1
-app_file: app.py
+title: PURIQ Finance
+emoji: 🔮
+colorFrom: purple
+colorTo: yellow
+sdk: docker
+app_port: 7860
 pinned: false
 license: apache-2.0
 ---
 
-# PURIQ Live
+# PURIQ Finance — source card
 
-Execute the SZL formula corpus against **live public signals**. No simulated Λ.
+This repository is the source-owned backend for PURIQ's read-only market-intelligence runtime. It observes allowlisted public market and filing sources, preserves explicit evidence receipts, and keeps all consequential effectors disabled.
 
-- Symmetric geometric-mean Λ (A5)
-- Egyptian-weighted Λ (Horus-Eye 63/64 + remainder — Theorem U / anchored)
-- maxAgg on the same 13-axis vector — live counterexample to unconditional uniqueness
-- 30-item harness: CHECKED never upgrades Conjecture 1
+Current authority split:
 
-Doctrine v11 LOCKED · locked-8 `{F1, F4, F7, F11, F12, F18, F19, F22}` · Λ = Conjecture 1.
+- backend source: `szl-holdings/puriq-live`;
+- shared formula authority: `szl-holdings/szl-formulas`;
+- presentation source: `szl-holdings/a11oy:verticals/finance`;
+- canonical Hugging Face projection: `SZLHOLDINGS/finance`;
+- public product origin: `https://a-11-oy.com`;
+- proof / evaluation registry: `https://a11oy.net`.
 
-Source of truth: [github.com/szl-holdings/puriq-live](https://github.com/szl-holdings/puriq-live)
+This file is source material only. Its presence does not prove that a Hugging Face revision is published, running, source-parity verified, or production-qualified. Publication and runtime readback must be established through the source-owned publisher and exact-revision gates.
+
+No wallet, custody, order placement, autonomous trading, or personalized investment advice. Λ remains Conjecture 1 / advisory only.
 
 Author: Stephen P. Lutar Jr. · ORCID 0009-0001-0110-4173 · Apache-2.0
