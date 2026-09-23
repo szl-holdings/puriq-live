@@ -83,6 +83,10 @@ jobs:
           docker run --rm --read-only --tmpfs /tmp \
             --mount "type=bind,src=$PWD/tests,dst=/app/tests,readonly" \
             --mount "type=bind,src=$PWD/requirements-test.txt,dst=/app/requirements-test.txt,readonly" \
+            --mount "type=bind,src=$PWD/SZL_ESTATE_BINDING.json,dst=/app/SZL_ESTATE_BINDING.json,readonly" \
+            --mount "type=bind,src=$PWD/SOURCE_PIN.md,dst=/app/SOURCE_PIN.md,readonly" \
+            --mount "type=bind,src=$PWD/FOLD.md,dst=/app/FOLD.md,readonly" \
+            --mount "type=bind,src=$PWD/SPACE.md,dst=/app/SPACE.md,readonly" \
             --mount "type=bind,src=$PWD/finance-evidence/container-tests,dst=/evidence" \
             --entrypoint sh szl-puriq-market-chamber:test -ec '
               python -c "import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)" > /evidence/python-version.txt

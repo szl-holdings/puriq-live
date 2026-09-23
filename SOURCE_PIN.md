@@ -1,20 +1,21 @@
-# Source pin — Packet 8
+# Source authority — PURIQ Finance
 
-This repository is a **thin adapter**. It does not own Decision Assurance product logic.
+This repository is the **backend source** for the PURIQ Finance public body. It owns the read-only market-intelligence runtime implemented here; it does **not** own the shared formula registry, the A11oy presentation layer, or Hugging Face publication authority.
 
-| Field | Value |
+The current estate contract is `szl-holdings/.github/estate/alignment.v1.json`. The local `SZL_ESTATE_BINDING.json` mirrors the fields relevant to this repository.
+
+| Field | Current authority |
 | --- | --- |
-| canonical core | `szl-holdings/a11oy/verticals/puriq-markets` |
-| kernel | `szl-holdings/a11oy/verticals/_kernel/a11oy_kernel.py` |
-| generated Space adapter | `szl-holdings/a11oy/huggingface/spaces` → `SZLHOLDINGS/puriq-markets` |
-| Space visibility | private (initial) |
-| Space status | ROADMAP until Hub runtime readback |
-| formula authority | NONE |
-| Λ | Conjecture 1 / ADVISORY_CONJECTURAL |
-| a11oy PR | https://github.com/szl-holdings/a11oy/pull/1438 |
-| a11oy main | `2b67b63624a3f4bf35787cfa5260d7960f1a76d5` |
-| a11oy parent | `60154ba5d752139493f3e2d2971668a6d56e61c2` |
+| backend source | `szl-holdings/puriq-live` |
+| formula authority | `szl-holdings/szl-formulas` |
+| governed fabric | `szl-holdings/a11oy` |
+| presentation source | `szl-holdings/a11oy:verticals/finance` |
+| canonical Hub surface | `SZLHOLDINGS/finance` |
+| Hub publisher | `szl-holdings/a11oy:.github/workflows/hf-publish-vertical-flagships.yml` |
+| public product origin | `https://a-11-oy.com` |
+| proof / evaluation registry | `https://a11oy.net` |
+| Λ | Conjecture 1 / advisory only |
 
-Read-only. No wallet, custody, order placement, or autonomous trading.
+`puriq-live` must not publish a competing Hub Space or redefine shared formula IDs. A source-qualified GitHub revision is not proof that the Hugging Face projection, product runtime, or proof registry has been promoted. Those stages require their own exact-revision publication and readback evidence.
 
-Do not add a parallel product source here. Do not claim the Hugging Face Space is RUNNING until Hub readback.
+The runtime remains read-only: no wallet connection, custody, order placement, autonomous trading, or personalized investment advice.
