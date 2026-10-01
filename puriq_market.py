@@ -38,6 +38,18 @@ ALLOWED_HOSTS = {
 }
 COINBASE_BASES = {"BTC", "ETH", "SOL", "ADA", "AVAX", "LINK", "LTC"}
 COINBASE_QUOTES = {"USD", "EUR", "GBP"}
+
+
+def _from_allowlist(value: str, allowed) -> str:
+    """Return the allowlist's own copy of ``value`` or raise ValueError.
+
+    URL path segments are built from these constants, never from the request string, which is
+    both the property we want and the one CodeQL's py/partial-ssrf query can see.
+    """
+    for candidate in allowed:
+        if candidate == value:
+            return candidate
+    raise ValueError("value is not in the public allowlist")
 DEFAULT_HEADERS = {
     "Accept": "application/json",
     "User-Agent": "SZL-PURIQ-Market-Chamber/2.0 (+https://a-11-oy.com)",
@@ -557,6 +569,8 @@ class PuriqClient:
             or currency not in COINBASE_QUOTES
         ):
             raise ValueError("base or currency is not in the public spot allowlist")
+        base = _from_allowlist(base, COINBASE_BASES)
+        currency = _from_allowlist(currency, COINBASE_QUOTES)
         spec = SOURCES["coinbase"]
         url = spec.url.format(pair=f"{base}-{currency}")
         _, raw, payload, source_url = _bounded_get_json(
@@ -613,7 +627,7 @@ class PuriqClient:
             raise ValueError("cik must contain 1 to 10 digits")
         limit = max(1, min(100, int(limit)))
         spec = SOURCES["sec"]
-        url = spec.url.format(cik=cik.zfill(10))
+        url = spec.url.format(cik=f"{int(cik):010d}")  # integer round-trip, never request bytes
         _, raw, payload, source_url = _bounded_get_json(
             url,
             headers=SEC_HEADERS,
