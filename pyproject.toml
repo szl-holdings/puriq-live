@@ -6,6 +6,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 authors = [{ name = "Stephen P. Lutar Jr.", email = "stephen@szlholdings.com" }]
+classifiers = ["Private :: Do Not Upload"]
 
 [project.urls]
 Homepage = "https://github.com/szl-holdings/puriq-live"
