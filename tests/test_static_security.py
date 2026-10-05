@@ -41,5 +41,5 @@ def test_static_invalid_paths_do_not_return_application_secrets(route):
 
 
 def test_patched_framework_versions_are_installed_in_the_tested_runtime():
-    assert version("fastapi") == "0.141.1"
+    assert version("fastapi") == "0.142.2"
     assert version("starlette") == "1.7.0"
