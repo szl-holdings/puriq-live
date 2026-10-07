@@ -153,3 +153,39 @@ Trading, wallet connections, custody, personalized investment advice, and unatte
 Stephen P. Lutar Jr. · SZL Holdings · ORCID `0009-0001-0110-4173`
 
 Apache-2.0. See `NOTICE` and `CITATION.cff`.
+# Signed price research
+
+Open `/signed-prices` for manually refreshed BTC, ETH and SOL public Verity
+samples. `GET /api/puriq/v1/signed-price?symbol=BTC` returns a provider record,
+separate signature/freshness evidence, the review policy, and a local digest
+receipt. No account or API key is needed for these three sample symbols.
+
+PURIQ independently verifies P-256/SHA-256 signatures using `cryptography`,
+checks the exact 18-field live v2 record against its signed canonical bytes,
+and withholds the usable price unless both signatures, freshness and the
+reported-source/grade policy pass. A missing v2 is price-only; tampering is
+invalid. The provider keyring is acquired over HTTPS, not independently pinned.
+The local receipt is a SHA-256 digest, not a PURIQ digital signature.
+The page expires its displayed price locally and never polls or trades.
+
+The separate offline `puriq_reference.estimate_reference` experiment compares
+an equal-venue median with a median across declared source groups. It requires
+explicit USD observations and a replay clock, records every exclusion, reports
+descriptive MAD, and abstains below three groups. Group labels do not establish
+independence. This model is not connected to the live provider as if one
+provider's source-count metadata were raw exchange observations.
+
+```sh
+python puriq_reference.py
+python tools/replay_reference.py observations.json --symbol BTC --now 1791392000
+```
+
+Each input row has `venue`, `symbol`, `quote` (`USD`), `price` (plain decimal
+text), `observed_at` (Unix seconds), and optional `group`. The explicit replay
+clock and methodology are included in the deterministic research receipt.
+
+See [the research map](docs/SIGNED_PRICE_RESEARCH_2026-10-07.md) for developers,
+GitHub repositories, primary publications, license findings, and falsifiable
+research hypotheses. These additions remain read-only research and review;
+they do not promote Lambda beyond Conjecture 1, assert market accuracy or
+superiority, or establish a live HF deployment.

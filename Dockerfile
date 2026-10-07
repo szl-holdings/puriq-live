@@ -14,8 +14,10 @@ RUN python -m pip install --disable-pip-version-check --no-cache-dir --only-bina
     && python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r requirements.txt
 
 COPY app.py puriq_market.py puriq_research.py puriq_research_routes.py szl_puriq.py ./
+COPY puriq_verity.py puriq_reference.py puriq_price_routes.py ./
 COPY LICENSE NOTICE ./
 COPY static/research/ ./static/research/
+COPY static/signed-prices/ ./static/signed-prices/
 COPY tools/vendor_vela.py ./tools/vendor_vela.py
 RUN python tools/vendor_vela.py
 

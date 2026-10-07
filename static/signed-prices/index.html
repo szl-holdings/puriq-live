@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>PURIQ · Signed Price Observatory</title>
+  <link rel="stylesheet" href="/static/signed-prices/signed-prices.css">
+  <script defer src="/static/signed-prices/signed-prices.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to observation</a>
+  <header>
+    <a class="wordmark" href="/">PURIQ<span> / SZL HOLDINGS</span></a>
+    <span class="badge">READ ONLY · TRADING DISABLED</span>
+  </header>
+  <main id="main">
+    <nav aria-label="Research navigation"><a href="/research">← Back to Research</a></nav>
+    <section class="hero">
+      <p class="eyebrow">FINANCE / SIGNED PRICE OBSERVATORY</p>
+      <h1>A price is a claim.<br><em>Inspect its signature.</em></h1>
+      <p class="intro">Inspect a public price print, its record signature, and the evidence behind a review decision. Every observation stays read only.</p>
+    </section>
+    <form id="controls" class="panel controls" aria-label="Observation controls">
+      <label for="symbol">Instrument<select id="symbol" name="symbol"><option value="BTC">BTC · Bitcoin</option><option value="ETH">ETH · Ethereum</option><option value="SOL">SOL · Solana</option></select></label>
+      <button id="refresh" type="submit">Refresh observation</button>
+      <p>Manual checks only.<br>No background price polling.</p>
+    </form>
+    <p id="status" role="status" aria-live="polite">NOT OBSERVED — refresh to inspect a signed public sample.</p>
+    <section class="panel observation" aria-labelledby="observation-heading">
+      <div class="sectionhead">
+        <div><p class="eyebrow">01 / OBSERVATION</p><h2 id="observation-heading">BTC / USD</h2></div>
+        <span id="decision" class="tag" data-state="idle">NOT OBSERVED</span>
+      </div>
+      <span class="metric-label">REPORTED PRICE · USD</span>
+      <strong id="price" class="price">—</strong>
+      <p id="price-note" class="note">A price appears only when the full record passes the review policy.</p>
+      <div class="observation-foot"><span id="checked">No check completed.</span><span>REPORTED ≠ independently accurate</span></div>
+    </section>
+    <section class="metrics" aria-label="Verification results">
+      <article class="panel"><span class="metric-label">RECORD AUTHENTICITY</span><strong id="authenticity">—</strong><p id="scope" class="note">No signature checked.</p></article>
+      <article class="panel"><span class="metric-label">FRESHNESS</span><strong id="freshness">—</strong><p id="source-time" class="note">No authenticated event time.</p></article>
+      <article class="panel"><span class="metric-label">REPORTED SOURCES</span><strong id="sources">—</strong><p id="sources-note" class="note">Shown only for an authenticated full record. Independence is not verified.</p></article>
+    </section>
+    <div class="twocol">
+      <section class="panel" aria-labelledby="decision-heading">
+        <p class="eyebrow">02 / REVIEW POLICY</p><h2 id="decision-heading">Why this decision</h2>
+        <p class="note">The current policy requires a fresh, fully signed record, an eligible grade, and at least three reported sources.</p>
+        <ul id="reasons" class="reasons"><li>No observation to evaluate.</li></ul>
+        <p class="note">REVIEW means eligible for human inspection. It is not an order, recommendation, or verified market value.</p>
+      </section>
+      <section class="panel" aria-labelledby="method-heading">
+        <p class="eyebrow">03 / METHOD</p><h2 id="method-heading">What a signature establishes</h2>
+        <p>Signatures establish issuer and record integrity relative to the supplied public key. They do not establish market accuracy or independent source agreement.</p>
+        <p class="note">The issuer keyring is retrieved over HTTPS and is not independently pinned. The local receipt hash identifies this check; it is not a provider signature.</p>
+        <p class="note">No account, custody, order, or capital transfer is connected to this surface.</p>
+      </section>
+    </div>
+    <section class="panel provenance" aria-labelledby="provenance-heading">
+      <div class="sectionhead"><div><p class="eyebrow">04 / PROVENANCE</p><h2 id="provenance-heading">A receipt for the check</h2></div><span class="tag">LOCAL HASH · NOT A SIGNATURE</span></div>
+      <div class="proofgrid"><div><span class="metric-label">RECEIPT SHA-256</span><code id="receipt-hash">UNAVAILABLE</code></div><div><span class="metric-label">KEY PROVENANCE</span><p id="key-source">UNAVAILABLE</p><p id="key-trust" class="note">No keyring retrieved.</p></div></div>
+      <details><summary>Inspect local receipt JSON</summary><p class="note">Local verification findings and policy. Hashing this receipt does not establish the provider’s claims as true.</p><pre id="receipt">No receipt available.</pre></details>
+      <details><summary>Inspect raw provider JSON</summary><p id="provider-warning" class="note">No provider data available.</p><pre id="provider">No provider data available.</pre></details>
+    </section>
+    <footer>PURIQ / Evidence before conviction. <a href="/research">Research lab</a> · <a href="/api/build-info">Inspect this build</a></footer>
+  </main>
+</body>
+</html>

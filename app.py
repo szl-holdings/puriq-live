@@ -17,6 +17,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from puriq_research_routes import router as research_router, research_assets
+from puriq_price_routes import router as price_router
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from puriq_market import (
@@ -46,6 +47,7 @@ app = FastAPI(
     ),
 )
 app.include_router(research_router)
+app.include_router(price_router)
 app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
 CLIENT = PuriqClient()
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -486,7 +488,7 @@ a,button,input,select{font:inherit}a{color:inherit;min-height:44px;display:inlin
 @media(max-width:980px){.hero{grid-template-columns:1fr}.chamber{max-width:560px}.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics,.sources{grid-template-columns:repeat(2,minmax(0,1fr))}.formula-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.shell{padding-inline:18px}h1{font-size:clamp(54px,18vw,82px)}.nav{width:100%}.nav a{flex:1;justify-content:center}.controls,.metrics,.grid,.sources,.formula-grid{grid-template-columns:1fr}.control.action button{width:100%}}@media(pointer:coarse){a,button,input,select{min-height:48px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}@media(forced-colors:active){.ambient{display:none}*{forced-color-adjust:auto}}
 </style></head>
 <body><a class="skip" href="#main">Skip to market chamber</a><div class="ambient" aria-hidden="true"><div class="orbit o1"></div><div class="orbit o2"></div></div>
-<main id="main" class="shell"><header class="top"><div class="brand">SZL / PURIQ</div><nav class="nav" aria-label="Product links"><a href="/docs">API</a><a href="/api/puriq/v1/anatomy">Anatomy</a><a href="/api/puriq/v1/formulas">Math</a><a href="/api/build-info">Source</a></nav></header>
+<main id="main" class="shell"><header class="top"><div class="brand">SZL / PURIQ</div><nav class="nav" aria-label="Product links"><a href="/signed-prices">Signed prices</a><a href="/docs">API</a><a href="/api/puriq/v1/anatomy">Anatomy</a><a href="/api/puriq/v1/formulas">Math</a><a href="/api/build-info">Source</a></nav></header>
 <section class="hero"><div><div class="eyebrow">PUBLIC-MARKET INTELLIGENCE / READ-ONLY</div><h1>Market Chamber.</h1><p class="lede">Prediction markets, SEC filings, Treasury rates, crypto spot references, Living Anatomy, Second-Brain receipt memory, and Hatun review—without a wallet, order path, custody surface, or fabricated feed.</p><div class="proof"><span class="pill good">SOURCE-BOUND CONTRACT</span><span class="pill">REV @@REVISION@@</span><span class="pill">LOCKED 8</span><span class="pill">Λ CONJECTURE 1</span></div></div><aside class="chamber"><div class="dial"><strong id="coverageDial">0/4</strong></div><small id="chamberState">Run the live chamber to observe public sources.</small></aside></section>
 <section aria-label="Market controls"><div class="controls"><div class="control"><label for="marketLimit">Prediction markets</label><input id="marketLimit" type="number" min="1" max="50" value="12"></div><div class="control"><label for="cik">SEC CIK</label><input id="cik" inputmode="numeric" pattern="[0-9]*" maxlength="10" value="320193"></div><div class="control"><label for="cryptoBase">Crypto base</label><select id="cryptoBase"><option>BTC</option><option>ETH</option><option>SOL</option><option>ADA</option><option>AVAX</option><option>LINK</option><option>LTC</option></select></div><div class="control"><label for="cryptoCurrency">Quote</label><select id="cryptoCurrency"><option>USD</option><option>EUR</option><option>GBP</option></select></div><div class="control action"><button id="run" type="button">Observe live chamber</button></div></div><p id="status" class="status" role="status" aria-live="polite">No live observation requested yet.</p></section>
 <section class="metrics" aria-label="Live summary"><article class="metric"><span>SOURCES OBSERVED</span><strong id="sourcesObserved">—</strong></article><article class="metric"><span>MARKETS RETURNED</span><strong id="marketsReturned">—</strong></article><article class="metric"><span>BTC SPOT</span><strong id="spotPrice">—</strong></article><article class="metric"><span>Λ DATA QUALITY</span><strong id="lambdaScore">—</strong></article></section>
