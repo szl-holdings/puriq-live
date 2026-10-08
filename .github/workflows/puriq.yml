@@ -68,7 +68,7 @@ jobs:
           python -m pip check
           python -m pip freeze > finance-evidence/python-environment.txt
           python -m pip inspect > finance-evidence/python-dependency-inspection.json
-          python -m compileall -q app.py puriq_market.py puriq_research.py puriq_research_routes.py szl_puriq.py tools tests
+          python -m compileall -q app.py puriq_market.py puriq_research.py puriq_research_routes.py puriq_verity.py puriq_reference.py puriq_price_routes.py szl_puriq.py tools tests
           python -m pytest tests -q --junitxml=finance-evidence/unit-tests.xml
       - name: Build source-bound nonroot container
         run: >-
@@ -113,7 +113,7 @@ jobs:
             if [ "$attempt" -eq 40 ]; then echo '::error::PURIQ readiness did not converge'; exit 1; fi
             sleep 1
           done
-          for path in / /research /healthz /readyz /api/build-info /.well-known/szl-source.json /api/puriq/v1/anatomy /api/puriq/v1/formulas /api/puriq/v1/sources /api/puriq/v1/research/readiness /static/research/research.js /static/research/research.css /static/vendor/vela/vela.global.min.js /static/vendor/vela/NOTICE; do
+          for path in / /research /signed-prices /static/signed-prices/signed-prices.js /healthz /readyz /api/build-info /.well-known/szl-source.json /api/puriq/v1/anatomy /api/puriq/v1/formulas /api/puriq/v1/sources /api/puriq/v1/research/readiness /static/research/research.js /static/research/research.css /static/vendor/vela/vela.global.min.js /static/vendor/vela/NOTICE; do
             curl --fail --silent --show-error "http://127.0.0.1:7860${path}" >/dev/null
           done
           curl --fail --silent --show-error http://127.0.0.1:7860/api/build-info > finance-evidence/build-info.json
@@ -121,6 +121,7 @@ jobs:
           test "$(docker inspect --format '{{.Config.User}}' "$cid")" = szl
           docker image inspect szl-puriq-market-chamber:test > finance-evidence/container-image.json
           python tests/browser_finance.py
+          python tests/browser_signed_prices.py
       - name: Audit actual container Python closure without mutating the image
         shell: bash
         run: |

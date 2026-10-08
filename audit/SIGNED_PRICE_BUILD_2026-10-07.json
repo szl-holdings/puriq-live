@@ -1,0 +1,50 @@
+{
+  "schema": "puriq.signed-price-build-evidence/v1",
+  "base_revision": "2809f84acc002fced84df6809af0a1e9eee50f97",
+  "research_date": "2026-10-07",
+  "python": "3.12.14",
+  "unit_tests": {
+    "command": "python -m pytest tests -q",
+    "passed": 216,
+    "failed": 0
+  },
+  "browser_tests": {
+    "command": "python tests/browser_signed_prices.py",
+    "scope": "synthetic review, tampering, request latency, expiry and mobile layout"
+  },
+  "live_probe": {
+    "source": "https://mcp.thepulse.markets/api/index/v1/sample?symbol=BTC",
+    "provider_at": "2026-10-07T19:14:09.238Z",
+    "observed_at": 1791400449.4942942,
+    "scope": "full-record",
+    "fresh": true,
+    "payload_sha256": "0efe3ca3ddc921aaffea3ee0962a33a6ace0cf66ba9ef325570b032bfeac4d75",
+    "keyring_sha256": "3cccd80b0949b5495b14c66fc7a0ac4aa0751292f9c347c10e809fd43b4b2243",
+    "key_fingerprint": "4a5e34a791a3dadffe272294871ca0647b41f578530d630212c28e98224b300b"
+  },
+  "files_sha256": {
+    "puriq_verity.py": "45595759a0a779f697b9933f62d797ec0d8049ff9bca66f917840c792682755a",
+    "puriq_reference.py": "5c2625f80517e52c89f9d9cce1b4363db1e9e98cdd65e6d49f62548bad97b488",
+    "puriq_price_routes.py": "7c66cbd9a83aa4937f802cf0762369eccaebf2d29b2d7f462573a8876720623d",
+    "app.py": "e8aecaf54709a067f5441a622487edf5ef573ca999447094810a4c426510cf75",
+    "static/signed-prices/index.html": "40ea93aac128e907c1b21add0d15fde1f543f9bca657fe296b0b91cd28b1edbb",
+    "static/signed-prices/signed-prices.js": "7b310c7ea8f21a722327569b7b52e0fd58152099288b3eed010f0d6dd75cc08f",
+    "static/signed-prices/signed-prices.css": "bfaba8a150c41d50115c39ba09660fcaaddc285a8db5bfb343c85ef40c13f06d"
+  },
+  "checks": [
+    "pip check",
+    "compileall",
+    "node --check",
+    "git diff --check"
+  ],
+  "limitations": [
+    "Local Python3.12.14; production image/CI uses3.12.13",
+    "Docker unavailable locally; container and dependency audit remain CI gates",
+    "Provider keyring bootstrapped from HTTPS; not independently pinned",
+    "One live sample is not a benchmark or reliability result",
+    "Group estimator tested synthetically, not qualified on a historical corpus"
+  ],
+  "production_deployed": false,
+  "trading_enabled": false,
+  "performance_superiority_claimed": false
+}
