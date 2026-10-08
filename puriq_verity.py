@@ -42,7 +42,9 @@ _STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 
 
 class _Rejected(ValueError):
-    pass
+    def __init__(self, code: str):
+        super().__init__("Signed print rejected")
+        self.code = code
 
 
 def _text(value: Any, *, limit: int = 256) -> str:
@@ -289,5 +291,7 @@ def verify_print(
         result.update(record_valid=True, verification_scope="full-record",
                       signed_fields=list(INDEX_V2_FIELDS))
     except _Rejected as exc:
-        result["reasons"].append(str(exc))
+        # Only internal decision codes cross the API boundary, never exception
+        # messages or chained parser/cryptography diagnostics.
+        result["reasons"].append(exc.code)
     return result

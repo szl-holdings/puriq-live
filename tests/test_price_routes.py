@@ -1,7 +1,4 @@
 """Transport/route boundary tests, separate from cryptographic fixture tests."""
-import json
-from pathlib import Path
-
 import httpx
 import pytest
 from fastapi.testclient import TestClient
