@@ -18,6 +18,19 @@ tags:
 
 # PURIQ Market Chamber
 
+<!-- szl:header v1 -->
+<!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon. -->
+<p>
+  <a href="https://github.com/szl-holdings">
+    <img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings — Orbit v2" width="32" height="32" />
+  </a>
+</p>
+
+**Control before action. Evidence after.**
+
+[Product](https://a-11-oy.com) · [Proof](https://a11oy.net) · [GitHub organization](https://github.com/szl-holdings)
+<!-- /szl:header -->
+
 PURIQ is SZL Holdings' source-bound, read-only market-intelligence surface. It observes public prediction-market quotes, SEC filings, U.S. Treasury rates, and public crypto spot references; applies explicit descriptive formulas; stores bounded receipt handles under a hashed caller session; and produces non-authorizing Hatun review envelopes.
 
 **PURIQ contains no wallet connection, custody, account, order, or trading endpoint.** It does not provide personalized investment advice. External observations can be delayed, incomplete, revised, or unavailable.
