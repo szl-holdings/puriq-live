@@ -18,7 +18,9 @@ concurrency:
 jobs:
   test:
     name: Test formulas, sources, API, UI, and container
-    runs-on: ubuntu-latest
+    # Playwright 1.55.0 has no Ubuntu 26 browser/dependency target.
+    # Remove after a tested Playwright >=1.61 upgrade and Ubuntu 26 browser CI.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
