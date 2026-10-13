@@ -57,7 +57,7 @@ jobs:
       - name: Set up Python matching pinned image
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12.13'
+          python-version: '3.14.8'
       - name: Install pinned runtime and test closure
         run: |
           python -m pip install --disable-pip-version-check --no-cache-dir -r requirements.txt -r requirements-test.txt
@@ -91,7 +91,7 @@ jobs:
             --mount "type=bind,src=$PWD/SPACE.md,dst=/app/SPACE.md,readonly" \
             --mount "type=bind,src=$PWD/finance-evidence/container-tests,dst=/evidence" \
             --entrypoint sh szl-puriq-market-chamber:test -ec '
-              python -c "import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)" > /evidence/python-version.txt
+              python -c "import sys; assert sys.version_info[:3] == (3,14,8); print(sys.version)" > /evidence/python-version.txt
               python -m pip check
               python -m pip freeze > /evidence/production-environment.txt
               python -m pip inspect > /evidence/production-dependency-inspection.json
