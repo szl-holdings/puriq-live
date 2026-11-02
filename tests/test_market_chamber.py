@@ -28,6 +28,21 @@ from puriq_market import (  # noqa: E402
 
 SESSION = "puriq-unit-test-session-01234567890123456789"
 
+INVALID_SOURCE_JSON = [
+    b'[{"id":"first","id":"second"}]',
+    b'[{"question":NaN}]',
+    b'[{"question":Infinity}]',
+    b'[{"question":-Infinity}]',
+    b'[{"question":1e10000}]',
+    b'[{"question":"\\ud800"}]',
+    b'[{"\\udfff":"value"}]',
+    b'[' * 2000 + b'0' + b']' * 2000,
+]
+INVALID_SOURCE_IDS = [
+    "duplicate-key", "nan", "positive-infinity", "negative-infinity",
+    "overflow", "lone-surrogate-value", "lone-surrogate-key", "deep-nesting",
+]
+
 
 def response(payload: object, status: int = 200) -> httpx.Response:
     return httpx.Response(
@@ -137,6 +152,72 @@ def test_health_readiness_source_and_front_door(client: TestClient) -> None:
     assert "@media(prefers-reduced-motion:reduce)" in front.text
     assert "@media(forced-colors:active)" in front.text
     assert "wallet_connections_enabled" not in front.text
+
+
+@pytest.mark.parametrize("raw", INVALID_SOURCE_JSON, ids=INVALID_SOURCE_IDS)
+def test_market_source_parser_rejects_ambiguous_or_unserializable_json(raw):
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=raw))
+    with pytest.raises(SourceUnavailable, match="invalid JSON"):
+        _bounded_get_json(
+            "https://gamma-api.polymarket.com/markets", max_bytes=16_384,
+            transport=transport,
+        )
+
+
+@pytest.mark.parametrize("raw", INVALID_SOURCE_JSON, ids=INVALID_SOURCE_IDS)
+def test_invalid_market_json_cannot_mint_a_brief_receipt(raw, monkeypatch):
+    def handler(request):
+        if request.url.host == "gamma-api.polymarket.com":
+            return httpx.Response(200, content=raw)
+        return source_handler(request)
+
+    monkeypatch.setattr(market_app, "CLIENT", PuriqClient(httpx.MockTransport(handler)))
+    with TestClient(market_app.app) as http:
+        result = http.get("/api/puriq/v1/brief", headers={"X-SZL-Session": SESSION})
+    assert result.status_code == 200
+    body = result.json()
+    assert body["status"] == "DEGRADED"
+    assert body["observations"]["polymarket"]["state"] == "UNAVAILABLE"
+    assert "polymarket" not in body["receipts"]
+    assert body["source_summary"]["observed"] == 3
+
+
+def test_market_source_parser_preserves_valid_unicode_and_raw_bytes():
+    raw = b'[{"question":"\\ud83c\\udf0e", "amount":1.25}]'
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=raw))
+    _, observed_raw, payload, _ = _bounded_get_json(
+        "https://gamma-api.polymarket.com/markets", max_bytes=16_384,
+        transport=transport,
+    )
+    assert observed_raw == raw
+    assert payload == [{"question": "\U0001f30e", "amount": 1.25}]
+
+
+@pytest.mark.parametrize("depth", [64, 65])
+def test_market_source_json_has_an_explicit_nesting_boundary(depth):
+    raw = b"[" * depth + b"0" + b"]" * depth
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=raw))
+    if depth > 64:
+        with pytest.raises(SourceUnavailable, match="invalid JSON"):
+            _bounded_get_json("https://gamma-api.polymarket.com/markets",
+                              max_bytes=1024, transport=transport)
+    else:
+        _, observed_raw, _, _ = _bounded_get_json(
+            "https://gamma-api.polymarket.com/markets", max_bytes=1024,
+            transport=transport,
+        )
+        assert observed_raw == raw
+
+
+def test_embedded_deep_outcomes_are_reported_as_invalid_instead_of_crashing():
+    from puriq_market import normalize_polymarket
+
+    result = normalize_polymarket([
+        {"outcomes": "[" * 2000 + '"Yes"' + "]" * 2000,
+         "outcomePrices": '["0.6","0.4"]'},
+    ], limit=1)
+    assert result["markets"][0]["yes_probability"] is None
+    assert "OUTCOME_PRICE_CARDINALITY_MISMATCH" in result["markets"][0]["data_quality_flags"]
 
 
 def test_anatomy_formulas_and_sources_are_explicit(client: TestClient) -> None:
