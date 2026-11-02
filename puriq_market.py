@@ -220,6 +220,57 @@ def _assert_destination(url: str) -> None:
         raise SourceUnavailable("source destination failed the fixed allowlist")
 
 
+def _unique_source_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate source JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_source_constant(value: str) -> None:
+    raise ValueError("nonfinite source JSON constant")
+
+
+def _finite_source_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("nonfinite source JSON number")
+    return number
+
+
+def _load_source_json(raw: bytes | str) -> Any:
+    """Reject ambiguous JSON before it can become an observation receipt."""
+    payload = json.loads(raw, object_pairs_hook=_unique_source_object,
+                         parse_constant=_reject_source_constant,
+                         parse_float=_finite_source_float)
+    # Keep only one iterator per nesting level, rather than another list of
+    # every scalar in a potentially large, but byte-bounded, source response.
+    pending = [iter((payload,))]
+    while pending:
+        try:
+            value = next(pending[-1])
+        except StopIteration:
+            pending.pop()
+            continue
+        if isinstance(value, (dict, list)):
+            if len(pending) > 64:
+                raise ValueError("source JSON exceeds nesting bound")
+            if isinstance(value, dict):
+                for key in value:
+                    key.encode("utf-8")
+                values = value.values()
+            else:
+                values = value
+            pending.append(iter(values))
+        elif isinstance(value, str):
+            # Escaped lone surrogates parse as Python strings but cannot enter
+            # the canonical UTF-8 observation bytes or a JSON API response.
+            value.encode("utf-8")
+    return payload
+
+
 def _bounded_get_json(
     url: str,
     *,
@@ -260,8 +311,8 @@ def _bounded_get_json(
                     chunks.append(chunk)
                 raw = b"".join(chunks)
                 try:
-                    payload = json.loads(raw)
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    payload = _load_source_json(raw)
+                except (ValueError, RecursionError) as exc:
                     raise SourceUnavailable("upstream returned invalid JSON") from exc
                 return response.status_code, raw, payload, _safe_url(url, query)
     except SourceUnavailable:
@@ -285,8 +336,8 @@ def _json_list(value: Any) -> list[Any]:
         return value
     if isinstance(value, str):
         try:
-            decoded = json.loads(value)
-        except json.JSONDecodeError:
+            decoded = _load_source_json(value)
+        except (ValueError, RecursionError):
             return []
         return decoded if isinstance(decoded, list) else []
     return []
