@@ -1,0 +1,9 @@
+# Package installer for the container image. The Dockerfile upgrades the base image's
+# pip from this hash-locked file before it installs requirements.txt, so the strict
+# container audit (pip-audit over `pip freeze --all`) covers the pip that ships.
+# Keep the version equal to the pip line in constraints-runtime.txt; Dependabot
+# (pip, directory "/") updates both.
+
+pip==26.2.2 \
+    --hash=sha256:3a8e5c800492787f33a4114ef54444546c340df428974ebba17e0fd47e11af2f \
+    --hash=sha256:fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
