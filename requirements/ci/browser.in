@@ -3,4 +3,4 @@
 # ubuntu-24.04; see the runs-on note in the workflow before upgrading it.
 # Regenerate the hash-locked file after editing:
 #   uv pip compile --generate-hashes --python-version 3.14 requirements/ci/browser.in -o requirements/ci/browser.txt
-playwright==1.55.0
+playwright==1.64.1
