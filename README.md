@@ -79,10 +79,10 @@ GET  /api/puriq/v1/research?pair=BTC-USD&granularity=3600
 GET  /api/puriq/v1/research/readiness
 GET  /signed-prices
 GET  /api/puriq/v1/signed-price?symbol=BTC
-GET  /docs
+GET  /openapi.json
 ```
 
-`/docs` is the generated OpenAPI explorer (schema at `/openapi.json`). The research and signed-price routes need no session header and keep nothing about the caller; the research route reuses a public candle response for at most 60 seconds from a bounded process-local cache.
+`/openapi.json` is the generated OpenAPI schema. FastAPI's `/docs` and `/redoc` pages are also served (the front door's API link opens `/docs`), but they load their scripts and styles from public CDNs that the service's own Content-Security-Policy blocks, so in a browser they render blank. The research and signed-price routes need no session header and keep nothing about the caller; the research route reuses a public candle response for at most 60 seconds from a bounded process-local cache.
 
 Stateful routes require a high-entropy `X-SZL-Session` header. The raw token is never recorded; only its SHA-256 scope is used internally.
 
