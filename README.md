@@ -202,3 +202,5 @@ GitHub repositories, primary publications, license findings, and falsifiable
 research hypotheses. These additions remain read-only research and review;
 they do not promote Lambda beyond Conjecture 1, assert market accuracy or
 superiority, or establish a live HF deployment.
+
+Estate on Hugging Face: models, datasets and Spaces are published under the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) org.
