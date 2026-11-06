@@ -1,0 +1,6 @@
+# Browser contract runner for .github/workflows/puriq.yml (tests/browser_finance.py,
+# tests/browser_signed_prices.py). Playwright stays at 1.55.0 while that job runs on
+# ubuntu-24.04; see the runs-on note in the workflow before upgrading it.
+# Regenerate the hash-locked file after editing:
+#   uv pip compile --generate-hashes --python-version 3.14 requirements/ci/browser.in -o requirements/ci/browser.txt
+playwright==1.55.0

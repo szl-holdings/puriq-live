@@ -1,0 +1,5 @@
+# Dependency auditor for .github/workflows/puriq.yml; installed into its own venv so it
+# never changes the closure it audits (the container's `pip freeze --all`).
+# Regenerate the hash-locked file after editing:
+#   uv pip compile --generate-hashes --python-version 3.14 requirements/ci/audit.in -o requirements/ci/audit.txt
+pip-audit==2.10.1

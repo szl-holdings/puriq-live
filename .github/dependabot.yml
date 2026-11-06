@@ -30,6 +30,23 @@ updates:
         patterns:
           - "*"
 
+  # Hash-locked CI tools (requirements/ci/*.txt, compiled with uv --generate-hashes).
+  # The "/" entry above keeps the hashed runtime and test files current.
+  - package-ecosystem: "pip"
+    directory: "/requirements/ci"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 5
+    groups:
+      ci-tools:
+        patterns:
+          - "*"
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

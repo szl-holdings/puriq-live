@@ -7,11 +7,12 @@ ARG PURIQ_SOURCE_REVISION=UNAVAILABLE
 ENV PURIQ_SOURCE_REVISION=${PURIQ_SOURCE_REVISION}
 
 WORKDIR /app
-COPY requirements.txt constraints-runtime.txt ./
+COPY requirements-pip.txt requirements.txt constraints-runtime.txt ./
 # Upgrade the image's package installer before resolving application packages.
 # The strict container audit includes pip; do not suppress its findings.
-RUN python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: 'pip==26.2.1' \
-    && python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r requirements.txt
+# Both installs run in pip's hash-checking mode against the committed lock files.
+RUN python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --require-hashes -r requirements-pip.txt \
+    && python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt
 
 COPY app.py puriq_market.py puriq_research.py puriq_research_routes.py szl_puriq.py ./
 COPY puriq_verity.py puriq_reference.py puriq_price_routes.py ./

@@ -1,13 +1,68 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "puriq-live"
-version = "0.1.0"
-description = "Execute the SZL formula corpus against live public signals. Λ = Conjecture 1."
+# Single source: the version the service reports at /healthz and /api/build-info.
+dynamic = ["version"]
+description = "PURIQ Market Chamber: read-only, receipted public-market intelligence (prediction markets, SEC EDGAR, Treasury rates, crypto spot) with no trading path. Λ = Conjecture 1."
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 authors = [{ name = "Stephen P. Lutar Jr.", email = "stephen@szlholdings.com" }]
-classifiers = ["Private :: Do Not Upload"]
+# Mirrors the direct pins in requirements.txt, the hash-locked closure the image installs.
+dependencies = [
+    "fastapi==0.162.0",
+    "starlette==1.10.0",
+    "uvicorn[standard]==0.54.0",
+    "pydantic==2.14.2",
+    "httpx==0.28.1",
+    "cryptography==50.0.2",
+]
+# A Docker service, not a library: the private classifier makes any accidental
+# PyPI upload fail (the importable module names, such as `app`, are generic).
+classifiers = [
+    "Private :: Do Not Upload",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial",
+]
+
+[project.optional-dependencies]
+# Mirrors requirements-test.txt.
+test = ["pytest==9.2.0"]
 
 [project.urls]
 Homepage = "https://github.com/szl-holdings/puriq-live"
+Source = "https://github.com/szl-holdings/puriq-live"
+Issues = "https://github.com/szl-holdings/puriq-live/issues"
 Doctrine = "https://a-11-oy.com"
+
+[tool.setuptools]
+# Flat service layout. Use source-tree (editable) installs only: the app serves
+# static/ and imports tools/vendor_vela.py relative to this checkout.
+py-modules = [
+    "app",
+    "puriq_market",
+    "puriq_price_routes",
+    "puriq_reference",
+    "puriq_research",
+    "puriq_research_routes",
+    "puriq_verity",
+    "szl_puriq",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "puriq_market.VERSION" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Import app.py and tools/ from the checkout however pytest is invoked.
+pythonpath = ["."]

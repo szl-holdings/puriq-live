@@ -55,6 +55,8 @@ PURIQ is SZL Holdings' source-bound, read-only market-intelligence surface. It o
 - **U.S. Department of the Treasury FiscalData** — average interest rates on Treasury securities.
 - **Coinbase public prices API** — allowlisted public spot references.
 
+Two read-only research surfaces add one fixed source each: the Evidence Market Lab (`/research`) reads completed public candles from the **Coinbase Exchange** API for BTC-USD, ETH-USD and SOL-USD, and the signed-price page (`/signed-prices`) reads **The Pulse** public Verity sample and its public key from `mcp.thepulse.markets` (see [Signed price research](#signed-price-research)).
+
 A failed source stays `UNAVAILABLE`; it is never replaced with fabricated or unlabeled sample data.
 
 ## API
@@ -72,7 +74,15 @@ GET  /api/puriq/v1/markets
 GET  /api/puriq/v1/brief
 GET  /api/puriq/v1/second-brain
 POST /api/puriq/v1/hatun/evaluate
+GET  /research
+GET  /api/puriq/v1/research?pair=BTC-USD&granularity=3600
+GET  /api/puriq/v1/research/readiness
+GET  /signed-prices
+GET  /api/puriq/v1/signed-price?symbol=BTC
+GET  /openapi.json
 ```
+
+`/openapi.json` is the generated OpenAPI schema. FastAPI's `/docs` and `/redoc` pages are also served (the front door's API link opens `/docs`), but they load their scripts and styles from public CDNs that the service's own Content-Security-Policy blocks, so in a browser they render blank. The research and signed-price routes need no session header and keep nothing about the caller; the research route reuses a public candle response for at most 60 seconds from a bounded process-local cache.
 
 Stateful routes require a high-entropy `X-SZL-Session` header. The raw token is never recorded; only its SHA-256 scope is used internally.
 
@@ -132,41 +142,7 @@ Sense → Normalize → Context → Formula → Policy → Decide → Verify →
 
 The shared six-vertical fabric lives in `szl-holdings/vertical-services`; PURIQ is its dedicated finance-facing product surface. The shared fabric resolves the aliases `puriq` and `markets` to its canonical `finance` runtime, avoiding duplicate authority.
 
-## Run locally
-
-```bash
-python -m pip install -r requirements.txt -r requirements-test.txt
-export PURIQ_SOURCE_REVISION=0000000000000000000000000000000000000000
-python -m pytest tests -q
-uvicorn app:app --host 0.0.0.0 --port 7860
-```
-
-Container:
-
-```bash
-docker build \
-  --build-arg PURIQ_SOURCE_REVISION="$(git rev-parse HEAD)" \
-  -t puriq-market-chamber .
-docker run --rm -p 7860:7860 puriq-market-chamber
-```
-
-`/readyz` closes only when source identity is a full observed Git SHA and the formula corpus has zero failures.
-
-## Truth and safety boundaries
-
-- `MEASURED` — local contract, source identity, or deterministic computation directly observed by the runtime.
-- `REPORTED` — normalized content returned by a named external authority.
-- `MODELED` — explicit descriptive transform such as entropy, probability displacement, liquidity quality, or Lambda advisory score.
-- `UNAVAILABLE` — source or evidence not observed; never painted green.
-
-Trading, wallet connections, custody, personalized investment advice, and unattended effectors are disabled.
-
-## Author
-
-Stephen P. Lutar Jr. · SZL Holdings · ORCID `0009-0001-0110-4173`
-
-Apache-2.0. See `NOTICE` and `CITATION.cff`.
-# Signed price research
+## Signed price research
 
 Open `/signed-prices` for manually refreshed BTC, ETH and SOL public Verity
 samples. `GET /api/puriq/v1/signed-price?symbol=BTC` returns a provider record,
@@ -203,4 +179,54 @@ research hypotheses. These additions remain read-only research and review;
 they do not promote Lambda beyond Conjecture 1, assert market accuracy or
 superiority, or establish a live HF deployment.
 
-Estate on Hugging Face: models, datasets and Spaces are published under the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) org.
+## Run locally
+
+```bash
+python -m pip install --require-hashes -r requirements.txt -r requirements-test.txt
+python tools/vendor_vela.py
+export PURIQ_SOURCE_REVISION="$(git rev-parse HEAD)"
+python -m pytest tests -q
+uvicorn app:app --host 0.0.0.0 --port 7860
+```
+
+`requirements.txt` is the hash-locked runtime closure the image installs and `requirements-test.txt` is the hash-locked pytest closure; pip checks every download against the committed SHA-256 digests. `tools/vendor_vela.py` downloads the pinned `@luxalgo/vela` 0.7.3 tarball from registry.npmjs.org, checks its SHA-512 and per-file SHA-256 pins, and writes the git-ignored `static/vendor/vela/` (it refuses to overwrite an existing directory). Without that step `/research` has no renderer, `/readyz` returns 503, and three tests fail. The suite itself needs no network access.
+
+For an editable development install with the same direct pins: `python -m pip install -e '.[test]' -c constraints-runtime.txt`.
+
+Container:
+
+```bash
+docker build \
+  --build-arg PURIQ_SOURCE_REVISION="$(git rev-parse HEAD)" \
+  -t puriq-market-chamber .
+docker run --rm -p 7860:7860 puriq-market-chamber
+```
+
+The build needs PyPI and registry.npmjs.org; both of its pip installs run in hash-checking mode. `/readyz` closes only when source identity is a full observed Git SHA, the formula corpus has zero failures, and the vendored Vela files match their pinned digests.
+
+## Verification
+
+`.github/workflows/puriq.yml` runs on every push and pull request to `main`: `pip check`, byte-compilation, the full suite on the runner, a source-bound non-root image build, the full suite again inside that image, route and Playwright browser checks against the running container, and a strict `pip-audit` of the image's exact Python closure. CodeQL and OpenSSF Scorecard run from the organization's SHA-pinned reusable workflows.
+
+## Truth and safety boundaries
+
+- `MEASURED` — local contract, source identity, or deterministic computation directly observed by the runtime.
+- `REPORTED` — normalized content returned by a named external authority.
+- `MODELED` — explicit descriptive transform such as entropy, probability displacement, liquidity quality, or Lambda advisory score.
+- `UNAVAILABLE` — source or evidence not observed; never painted green.
+
+Trading, wallet connections, custody, personalized investment advice, and unattended effectors are disabled.
+
+## Links
+
+- Source: [szl-holdings/puriq-live](https://github.com/szl-holdings/puriq-live), the backend source for PURIQ Finance (authority split in `SOURCE_PIN.md`).
+- Canonical Hugging Face projection: [SZLHOLDINGS/finance](https://huggingface.co/spaces/SZLHOLDINGS/finance), published from `szl-holdings/a11oy` by `.github/workflows/hf-publish-vertical-flagships.yml`. This repository publishes no Space, and a revision here is not proof that the Space runs it.
+- As of 2026-11-06, `szl-holdings/a11oy` also embeds `puriq_verity.py` and `puriq_reference.py` from this repository, pinned by SHA-256 in `verticals/puriq-markets/runtime/components/puriq_verity/source.json`; change those files together with that pin.
+- Hugging Face organization: estate models, datasets and Spaces are published under [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS).
+- Product: [a-11-oy.com](https://a-11-oy.com) · Proof registry: [a11oy.net](https://a11oy.net)
+
+## Author
+
+Stephen P. Lutar Jr. · SZL Holdings · ORCID `0009-0001-0110-4173`
+
+Apache-2.0. See `NOTICE` and `CITATION.cff`.
