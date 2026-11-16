@@ -200,7 +200,7 @@ def test_renderer_pin_manifest():
     text=(Path(__file__).parents[1]/'tools/vendor_vela.py').read_text()
     assert 'ea73dafeffb2f0aa14ca6163e7e427810ead692a29a552a426a774de62e520dd' in text
     assert 'NoRedirect' in text and 'refusing to overwrite' in text
-    page=(Path(__file__).parents[1]/'static/research/index.html').read_text()
+    page=(Path(__file__).parents[1]/'static/research/index.html').read_text(encoding='utf-8')
     assert 'Charts by Vela' in page and 'https://luxalgo.com/vela' in page
     assert 'No out-of-sample skill claim' in page
 
