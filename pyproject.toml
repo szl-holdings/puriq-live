@@ -14,7 +14,7 @@ requires-python = ">=3.11"
 authors = [{ name = "Stephen P. Lutar Jr.", email = "stephen@szlholdings.com" }]
 # Mirrors the direct pins in requirements.txt, the hash-locked closure the image installs.
 dependencies = [
-    "fastapi==0.162.5",
+    "fastapi==0.163.0",
     "starlette==1.10.0",
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.3",
