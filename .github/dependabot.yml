@@ -57,6 +57,14 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 5
+    ignore:
+      # python:*-slim ships no compiler and the image's hash-locked installs
+      # lack cp315 wheels, so a 3.15 base fails the runtime-contract build
+      # (dependabot PR #51, measured-red). Same family as killinchu #639:
+      # no cp315 numpy wheel + no compiler in slim images. Lift this hold once
+      # every hash-locked Dockerfile install succeeds on 3.15-slim.
+      - dependency-name: "python"
+        versions: [">=3.15"]
     groups:
       docker:
         patterns:
