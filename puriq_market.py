@@ -379,8 +379,17 @@ def normalize_polymarket(payload: Any, *, limit: int) -> dict[str, Any]:
             outcome_prices.append({"outcome": label, "probability": price})
         labels = [p["outcome"].strip().casefold() if p["outcome"] else "" for p in outcome_prices]
         yes_probability = None
-        if cardinality_ok and len(labels) == 2 and set(labels) == {"yes", "no"}:
+        binary_labels_ok = (
+            cardinality_ok and len(labels) == 2 and set(labels) == {"yes", "no"}
+        )
+        # A valid YES quote cannot validate an invalid complementary NO quote.
+        # Keep the individual raw quote, but suppress all derived binary metrics.
+        if binary_labels_ok and all(
+            entry["probability"] is not None for entry in outcome_prices
+        ):
             yes_probability = outcome_prices[labels.index("yes")]["probability"]
+        elif binary_labels_ok:
+            flags.append("INCOMPLETE_BINARY_OUTCOME_PRICE")
         else:
             flags.append("NOT_AN_EXPLICIT_YES_NO_BINARY")
         best_bid = _bounded_number(item.get("bestBid"), probability=True)
