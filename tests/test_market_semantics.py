@@ -18,6 +18,37 @@ def test_invalid_price_does_not_shift_onto_yes(invalid):
     assert value['outcomes'][1]['probability'] == .4
 
 
+@pytest.mark.parametrize('invalid', ['bad', None, True, -0.1, 1.1, float('nan'), float('inf')])
+def test_invalid_no_quote_suppresses_derived_yes_probability(invalid):
+    value = row(outcomePrices=['0.6', invalid])
+    # Preserve the reported, individually valid quote without promoting it
+    # to a trustworthy complete binary-market observation.
+    assert value['outcomes'][0]['probability'] == 0.6
+    assert value['outcomes'][1]['probability'] is None
+    assert value['yes_probability'] is None
+    assert value['binary_entropy'] is None
+    assert value['probability_edge_from_50'] is None
+    assert {'INVALID_OUTCOME_OR_PRICE', 'INCOMPLETE_BINARY_OUTCOME_PRICE'} <= set(
+        value['data_quality_flags']
+    )
+
+
+def test_exact_zero_complement_is_valid_and_not_missing():
+    value = row(outcomePrices=[1.0, 0.0])
+    assert value['yes_probability'] == 1.0
+    assert value['binary_entropy'] == 0.0
+    assert value['probability_edge_from_50'] == 0.5
+    assert 'INCOMPLETE_BINARY_OUTCOME_PRICE' not in value['data_quality_flags']
+
+
+def test_reversed_labels_with_bad_complement_do_not_shift_probability():
+    value = row(outcomes=['No', 'Yes'], outcomePrices=['bad', '0.6'])
+    assert value['outcomes'][1]['probability'] == 0.6
+    assert value['yes_probability'] is None
+    assert value['binary_entropy'] is None
+    assert 'INCOMPLETE_BINARY_OUTCOME_PRICE' in value['data_quality_flags']
+
+
 def test_reversed_yes_no_uses_label_not_position():
     assert row(outcomes=['No', 'Yes'], outcomePrices=[.4, .6])['yes_probability'] == .6
 
